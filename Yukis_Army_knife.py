@@ -7331,7 +7331,6 @@ def text_search():
     search_button.grid(row=3,column=0)
     clear_button.grid(row=3,column=1)
 
-    # ハイライト用タグ
     text.tag_configure("highlight", background="red")
 
 def site_image():
@@ -8072,7 +8071,7 @@ def magnifier():
     frame1.destroy()
     frame = ttk.Frame(root)
     img_size = 500
-    img_double_size = img_size * 0.5  # 2倍
+    img_double_size = img_size * 0.5
     tk_image = None
     long_s=int(img_double_size/2)
     root1 = Toplevel()
@@ -8183,7 +8182,6 @@ def excel_csv():
             if int(spinbox.get()) < len(sheet_names):
                 target_sheet_name = sheet_names[int(spinbox.get())]
                 sheet = workbook[target_sheet_name]
-                # シートをCSVファイルに書き込みます
                 with open(y, 'w', newline='') as csv_file:
                     csv_writer = csv.writer(csv_file)
                     for row in sheet.iter_rows():
@@ -8218,10 +8216,8 @@ def csv_excel():
         file_list=file_mult(files)
         for x in file_list:
             y=x.replace(".csv",".xlsx")
-            # エクセルワークブックの作成
             workbook = openpyxl.Workbook()
             sheet = workbook.active
-            # CSVファイルの内容をエクセルシートに書き込む
             with open(x, 'r', encoding='utf-8') as csvfile:
                 csvreader = csv.reader(csvfile)
                 for row in csvreader:
