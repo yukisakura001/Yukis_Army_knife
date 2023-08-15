@@ -2995,7 +2995,7 @@ def front_window():
             # アクティブなウィンドウ取得
             active_window = win32gui.GetForegroundWindow()
             class_name = win32gui.GetWindowText(active_window)
-            # ウィンドウが最前面に固定されている場合
+            # ウィンドウが最前面に固定されているか
             if win32gui.GetWindowLong(active_window, win32con.GWL_EXSTYLE) & win32con.WS_EX_TOPMOST:
                 # 最前面表示解除
                 win32gui.SetWindowPos(active_window, win32con.HWND_NOTOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
@@ -3191,7 +3191,7 @@ def window_path():
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
         # プロセスIDからプロセス取得
         process = psutil.Process(pid)
-        # プロセスの実行ファイルのパスを取得
+        # プロセスの実行ファイルのパス取得
         path = process.exe()
 
         return path
@@ -3199,13 +3199,13 @@ def window_path():
     def on_release(key):
         nonlocal listener
         if key == keyboard.Key.pause:
-            # アクティブなウィンドウのハンドルを取得
+            # アクティブなウィンドウのハンドル
             hwnd = win32gui.GetForegroundWindow()
             window_title = win32gui.GetWindowText(hwnd)
             if window_title != "":
                 path = get_window_process_path(hwnd)
                 if os.path.exists(path):
-                    # エクスプローラーを開いて、ファイルを選択
+                    # エクスプローラーを開いて、ファイル選択
                     subprocess.Popen(['explorer.exe', '/select,', path]).wait()
                 else:
                     messagebox.showerror('エラー', 'ウィンドウのパスを取得できませんでした')
@@ -3237,11 +3237,11 @@ def icon_image():
         messagebox.showinfo('完了', 'アイコンを抽出しました')
 
     def extract_icon_from_exe(exe_path, icon_index=0):
-        # アイコンの大きさ取得
+        # アイコンの大きさ
         icon_size = win32api.GetSystemMetrics(win32con.SM_CXICON), win32api.GetSystemMetrics(win32con.SM_CYICON)
         # アイコン抽出
         large, small = win32gui.ExtractIconEx(exe_path, icon_index)
-        # 大きいアイコン取得
+        # 大きいアイコン
         x=filedialog.asksaveasfilename(
         title = "名前を付けて保存",
         filetypes = [("PNG", ".png")],
@@ -3249,7 +3249,7 @@ def icon_image():
         initialfile = "icon"
         )
         if large:
-            # Bitmapオブジェクトを作成
+            # Bitmapオブジェクト
             hdc = win32ui.CreateDCFromHandle(win32gui.GetDC(0))
             hbmp = win32ui.CreateBitmap()
             hbmp.CreateCompatibleBitmap(hdc, icon_size[0], icon_size[1])
@@ -5018,10 +5018,9 @@ def window_toumei():
     root1.title('最前面で固定ウィンドウ')
     frame_1=ttk.Frame(root1, padding=12)
     def set_window_opacity(hwnd, opacity):
-        # ウィンドウのスタイルを取得
+        # ウィンドウのスタイル
         style = win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE)
 
-        # ウィンドウのスタイルを変更して透明度を有効
         style = style | win32con.WS_EX_LAYERED
         win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE, style)
 
@@ -5555,9 +5554,9 @@ def network_monitor():
         check_ip=1
         button.configure(text="更新中",state="disabled")
         button.update()
-        # 通信先IPアドレスと実行ファイル取得
+        # 通信先IPアドレスと実行ファイル
         destination_ip_list1, connection_info_dict1 = get_all_destination_ips_and_executables()
-        # 辞書型を変換
+        # 辞書型
         formatted_connection_info1 = {ip: executables[0] for ip, executables in connection_info_dict1.items()}
         ip_list = list(set(destination_ip_list) & set(destination_ip_list1))
         del_ip_list = list(set(destination_ip_list) - set(ip_list))
@@ -5655,9 +5654,9 @@ def network_monitor():
                         pass
         return list(destination_ips), connection_info
 
-    # 通信先IPアドレスと実行ファイル取得
+    # 通信先IPアドレスと実行ファイル
     destination_ip_list, connection_info_dict = get_all_destination_ips_and_executables()
-    # 辞書型を変換
+    # 辞書型
     formatted_connection_info = {ip: executables[0] for ip, executables in connection_info_dict.items()}
 
     def get_ocation(ip_address):
@@ -6016,8 +6015,8 @@ def net_info():
         url_regex = re.compile(
             r'^(?:http|ftp)s?://'  # http:// or https://
             r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
-            r'localhost|'  # localhost...
-            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or IP
+            r'localhost|'  # localhost
+            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # IP
             r'(?::\d+)?'  # optional port
             r'(?:/?|[/?]\S+)$', re.IGNORECASE)
         return re.match(url_regex, string) is not None
@@ -6160,7 +6159,7 @@ def trapezoid():
         # 変換行列
         M = cv2.getPerspectiveTransform(src, dst)
 
-        # 射影変換・透視変換する
+        # 射影変換
         output = cv2.warpPerspective(img, M,(o_width, o_height))
         _, buf = cv2.imencode('*.png', output)
         buf.tofile(z)
@@ -6866,7 +6865,7 @@ def web_camera():
            path_num=1
            _,buf = cv2.imencode('*.png', cv2.cvtColor( frameN, cv2.COLOR_BGR2RGB ))
            buf.tofile(path+"/frame-" + time.strftime("%Y-%m-%d-%H-%M-%S") + ".jpg")
-   video_source = 0 # カメラ選択
+   video_source = 0
    vcap = cv2.VideoCapture(video_source)
    width = int(vcap.get(cv2.CAP_PROP_FRAME_WIDTH))
    height = int(vcap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -7184,7 +7183,6 @@ def window_center():
         window_width = rect[2] - rect[0]
         window_height = rect[3] - rect[1]
 
-        # モニターのサイズ
         screen_width = win32api.GetSystemMetrics(0)
         screen_height = win32api.GetSystemMetrics(1)
 
@@ -8490,9 +8488,7 @@ elif style_setting.strip()=="modern_dark":
     sv_ttk.set_theme("dark")
 elif style_setting.strip()=="modern_light":
     sv_ttk.set_theme("light")
-#elif style_setting.strip()=="0":
-    #root.tk.call('source', 'breeze-dark.tcl')
-    #s.theme_use('breeze-dark')
+
 root.resizable(False, False)
 root.title("Yuki's army knife")
 photo = my_icon.get_photo_image4icon()
