@@ -6,6 +6,10 @@
 
 コードの書き方やモジュール化などさっぱり理解していないところから始まったため、動けば良いの精神で作られています。そのためコードはかなり汚くて見にくいです
 
+# 動作環境
+
+windows10及びwindows11でのみ動作
+
 ## 公開サイト（詳細な解説はこちらへ）
 
 https://yukisakura.notion.site/Yuki-s-Army-knife-8b11161af892436a9dd9cfa64724dec9?pvs=4
@@ -22,20 +26,3 @@ https://yukisakura.notion.site/Yuki-s-Army-knife-8b11161af892436a9dd9cfa64724dec
 
 イメージ的には単機能のソフトが複数集まった感じです。
 
-# 使用API
-
-IPアドレス確認：http://checkip.dyndns.com/
-
-短縮URL：http://tinyurl.com/api-create.php
-
-パスワードチェック：https://api.pwnedpasswords.com/range/
-
-通信先特定①：https://ipapi.co/
-
-通信先特定②：http://ip-api.com/
-
-住所特定：https://madefor.github.io/postal-code-api/api/v1
-
-ダミー画像生成：https://via.placeholder.com/
-
-OGP情報取得：https://kotsukotsu-ogp-api.vercel.app/api/ogp?
