@@ -8567,10 +8567,10 @@ def metrome():
         freq = int(440*2**(tone/12)) #周波数
         sleep_time = (60/int(entry1.get())) - (int(entry2.get())/1000) #停止時間
         if sleep_time>0:
-            for i in range(cycle): #10回繰り返し
+            for i in range(cycle):
                 if onoff==0:
-                    winsound.Beep(freq, int(int(entry2.get()))) #440hz, 100ミリ秒の音
-                    time.sleep(sleep_time) #1秒間隔
+                    winsound.Beep(freq, int(int(entry2.get())))
+                    time.sleep(sleep_time)
                 else:
                     return
         else:
@@ -9162,12 +9162,8 @@ def window_kill():
     frame = ttk.Frame(root)
 
     def get_active_window_info():
-        # アクティブなウィンドウのハンドルを取得
         hwnd = win32gui.GetForegroundWindow()
-
-        # アクティブなウィンドウのプロセスIDを取得
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
-
         return hwnd, pid
 
     def kill_process_by_pid(pid):
@@ -9178,7 +9174,6 @@ def window_kill():
 
     def on_release(key):
         if key == keyboard.Key.pause:
-            # アクティブなウィンドウ取得
                 hwnd, pid = get_active_window_info()
                 if pid:
                     kill_process_by_pid(pid)
