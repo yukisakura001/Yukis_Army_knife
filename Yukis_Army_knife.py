@@ -39,7 +39,7 @@ import win32ui
 import urllib.parse
 from moviepy.editor import AudioFileClip
 from  randomuser import *
-from datetime import datetime
+from datetime import datetime,timedelta
 import time
 from gtts import gTTS
 from playsound import playsound
@@ -88,6 +88,9 @@ import csv
 import unicodedata
 from moviepy.editor import ImageSequenceClip
 import sv_ttk
+import winsound
+import win32clipboard
+from jeraconv import jeraconv
 
 #def on_minimize(event):
 #    #root.deiconify()
@@ -103,10 +106,10 @@ class Tk(ThemedTk, TkinterDnD.DnDWrapper):
         super().__init__(*args, **kwargs)
         self.TkdndVersion = TkinterDnD._require(self)
 
-version="5.3"
+version="5.4"
 # メイン画面
 def set_frame1(page_x):
-    global frame1,button45,button69,buttonY
+    global frame1,button45,button69,buttonY,button143
     frame1 = ttk.Frame(root)
     root.protocol("WM_DELETE_WINDOW", frame_delete)
     random.seed(None)
@@ -980,10 +983,106 @@ def set_frame1(page_x):
         text="Gif撮影",
         command=gif_video
     )
+    button135=ttk.Button(
+        frame_video3,
+        width=12,
+        text="メトローム",
+        command=metrome
+    )
+    button136=ttk.Button(
+        frame_text3,
+        width=12,
+        text="OGP取得",
+        command=ogp
+    )
+    button137=ttk.Button(
+        frame_image3,
+        width=12,
+        text="画像直接コピー",
+        command=copy_image
+    )
+    button138=ttk.Button(
+        frame_text3,
+        width=12,
+        text="直リンク変換",
+        command=cloud_download
+    )
+    button139=ttk.Button(
+        frame_video1,
+        width=12,
+        text="音声結合",
+        command=voice_concat
+    )
+    button140=ttk.Button(
+        frame_text3,
+        width=12,
+        text="JSON整形",
+        command=json_format
+    )
+    button141=ttk.Button(
+        frame_other1,
+        width=12,
+        text="環境変数",
+        command=env_word
+    )
+    button142=ttk.Button(
+        frame_text3,
+        width=12,
+        text="西暦↔和暦",
+        command=seiwa
+    )
+    button143=ttk.Button(
+        frame_other1,
+        width=12,
+        text="壁紙スラショ",
+        command=wallpaper
+    )
+    button144=ttk.Button(
+        frame_image1,
+        width=12,
+        text="PDF画像抽出",
+        command=pdf_image
+    )
+    button145=ttk.Button(
+        frame_image1,
+        width=12,
+        text="PDF圧縮",
+        command=pdf_press
+    )
+    button146=ttk.Button(
+        frame_image1,
+        width=12,
+        text="PDF回転",
+        command=pdf_rotate
+    )
+    button147=ttk.Button(
+        frame_other1,
+        width=12,
+        text="窓強制終了",
+        command=window_kill
+    )
+    button148=ttk.Button(
+        frame_text3,
+        width=12,
+        text="日数計算",
+        command=time_calc
+    )
+    button149=ttk.Button(
+        frame_text3,
+        width=12,
+        text="黄金比計算",
+        command=golden_ratio
+    )
+    button150=ttk.Button(
+        frame_video3,
+        width=12,
+        text="電子音ピアノ",
+        command=piano
+    )
 
-    kinou=134
+    kinou=150
 
-    label_text=Label(frame_text,text="テキスト",bg="green",fg="white")
+    label_text=Label(frame_text,text="テキスト・情報",bg="green",fg="white")
     label_image=Label(frame_image,text="画像・PDF",bg="#800000",fg="white")
     label_video=Label(frame_video,text="動画・音声",bg="blue",fg="white")
     label_other=Label(frame_other,text="ファイル・小物ツール",bg="purple",fg="white")
@@ -1072,8 +1171,6 @@ def set_frame1(page_x):
             combobox.delete(0,END)
     def show_dropdown(event):
         combobox.event_generate('<Down>')
-
-
 
     root.bind('<FocusIn>', on_focus_in)
     combobox.bind('<KeyPress>', handle_keypress)
@@ -2141,7 +2238,7 @@ def face_mosaic():
                 with open(save_path, 'wb') as file:
                     file.write(response.content)
             else:
-                print("ファイルのダウンロードに失敗しました。")
+                messagebox.showerror("エラー","ファイルのダウンロードに失敗しました。")
 
         def mosaic(src, ratio=0.1):
             small = cv2.resize(src, None, fx=ratio, fy=ratio, interpolation=cv2.INTER_NEAREST)
@@ -3042,7 +3139,7 @@ def front_window():
         with keyboard.Listener(on_release=on_release) as listener:
             listener.join()
 
-    t = threading.Thread(target=listen_thread)
+    t = threading.Thread(target=listen_thread, daemon=True)
     t.start()
 
 def screen_memo():
@@ -3223,7 +3320,7 @@ def window_path():
     buttonY.grid(row=0,column=0)
     label.grid(row=1,column=0,columnspan=2)
     listener=None
-    t=threading.Thread(target=key_check)
+    t=threading.Thread(target=key_check,daemon=True)
     t.start()
 
 def icon_image():
@@ -4144,7 +4241,6 @@ def pc_info():
 
     def pc_info1():
         nonlocal a
-        print("aaa")
         root.after_cancel(a)
         label3.config(text=f"CPU使用率：{psutil.cpu_percent(interval=1)}%")
         label4.config(text=f"メモリ使用率：{psutil.virtual_memory().percent}%")
@@ -4345,10 +4441,8 @@ def img_gamma():
             img=Image.open(x)
             name=os.path.basename(x)
             if has_alpha_channel(img):
-                print("T")
                 result=img.point(gamma_table_alpha(float(entry_gamma.get())))
             else:
-                print("F")
                 result=img.point(gamma_table(float(entry_gamma.get())))
             result.save(os.path.dirname(x)+"/"+"gamma_"+name)
         messagebox.showinfo('完了', '作成しました')
@@ -5013,10 +5107,26 @@ def image_info():
     label.grid(row=1,column=0,columnspan=2)
 
 def window_toumei():
-    global button69
-    root1 = Toplevel()
-    root1.title('最前面で固定ウィンドウ')
-    frame_1=ttk.Frame(root1, padding=12)
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root, padding=12)
+
+    def stopping():
+        listener.stop()
+        t.join()
+        frame_delete()
+
+    def main_frame1(num):
+        listener.stop()
+        t.join()
+        root.protocol("WM_DELETE_WINDOW", frame_delete)
+        main_frame(num)
+
+    def key_check():
+        nonlocal listener
+        with keyboard.Listener(on_release=on_release) as listener:
+            listener.join()
+
     def set_window_opacity(hwnd, opacity):
         # ウィンドウのスタイル
         style = win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE)
@@ -5042,37 +5152,23 @@ def window_toumei():
                 hwnd = win32gui.GetForegroundWindow()
                 set_window_opacity(hwnd, float(entry.get()))
 
-    def close_window():
-        listener.stop()
-        t.join()
-        root.protocol("WM_DELETE_WINDOW", frame_delete)
-        button69.config(state="normal")
-        root1.destroy()
 
-    def stopping():
-        listener.stop()
-        t.join()
-        frame_delete()
-
-    button69.config(state="disabled")
-    listener=None
-    root1.protocol("WM_DELETE_WINDOW", close_window)
     root.protocol("WM_DELETE_WINDOW", stopping)
-    root1.attributes('-topmost', '1')
-    label=ttk.Label(frame_1,text="pauseキーで\n透明度を変更します",font=("Helvetica", 16))
-    label1=ttk.Label(frame_1,text="透明度を入力してください(0~1)：")
-    entry=ttk.Entry(frame_1,width=5)
-    frame_1.pack()
-    entry.insert(END,"0.5")
-    label1.grid(row=0,column=0)
-    entry.grid(row=0,column=1)
-    label.grid(row=1,column=0,columnspan=2)
-    def listen_thread():
-        nonlocal listener
-        with keyboard.Listener(on_release=on_release) as listener:
-            listener.join()
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame1(3),font=("Helvetica", 7),bg="gray",fg="white")
+    label=ttk.Label(frame,text="pauseでウィンドウを実行している\nファイルを直接開きます",font=("Helvetica", 16))
+    label1=ttk.Label(frame,text="透明度を入力してください(0~1)")
+    entry=ttk.Entry(frame,width=5)
+    entry.insert(0,"0.8")
 
-    t = threading.Thread(target=listen_thread)
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label1.grid(row=1,column=0)
+    entry.grid(row=1,column=1)
+    label.grid(row=2,column=0,columnspan=2)
+    listener=None
+    t=threading.Thread(target=key_check,daemon=True)
     t.start()
 
 def url_change():
@@ -5528,7 +5624,7 @@ def site_title():
 
 def network_monitor():
     root1=Toplevel()
-    frame_1=Frame(root1)
+    frame_1=ttk.Frame(root1)
     root1.attributes("-topmost", True)
     root1.title("ネットワークモニター")
     check_ip=0
@@ -5569,10 +5665,12 @@ def network_monitor():
         for ip in create_ip_list:
             country,org=get_ocation(ip)
             exe_file=formatted_connection_info1[ip]
-            tree.insert(parent='', index='end', iid=id_num ,values=(country,i,org,os.path.basename(exe_file),dtimes))
+            tree.insert(parent='', index='end', iid=id_num ,values=(country,ip,org,os.path.basename(exe_file),dtimes))
             id_num=id_num+1
         check_ip=0
         button.config(state="normal",text="更新")
+        destination_ip_list=destination_ip_list1
+        connection_info_dict=connection_info_dict1
         button.update()
 
     def detail_record(event):
@@ -5673,7 +5771,8 @@ def network_monitor():
 
     button=ttk.Button(frame_1,text="更新",command=network_monitor1)
     column = ('country', 'ip', 'connection','exe',"time")
-    tree = ttk.Treeview(frame_1, columns=column,height=20)
+    frame_2=ttk.Frame(root1)
+    tree = ttk.Treeview(frame_2, columns=column,height=20)
     tree.bind("<<TreeviewSelect>>", detail_record)
     tree.column('#0',width=0, stretch='no')
     tree.column('country', anchor='center', width=60)
@@ -5689,6 +5788,9 @@ def network_monitor():
     tree.heading('exe',text='実行ファイル', anchor='center')
     tree.heading('time',text='開始時間', anchor='center')
 
+    scrollbar = ttk.Scrollbar(frame_2, orient=VERTICAL, command=tree.yview)
+    tree.configure(yscroll=scrollbar.set)
+
     id_num=0
     times=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     for i in destination_ip_list:
@@ -5699,7 +5801,9 @@ def network_monitor():
 
     frame_1.pack(side=TOP)
     button.pack(side=TOP)
-    tree.pack(side=TOP)
+    frame_2.pack(side=TOP)
+    tree.pack(side=LEFT)
+    scrollbar.pack(side=RIGHT, fill=Y)
     srop_a=root1.after(60000,network_monitor2)
 
     def deswin():
@@ -6339,7 +6443,6 @@ def video_convert():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            print(x)
             clip=VideoFileClip(x)
             _,youso=os.path.splitext(x)
             if var1.get()==1 and youso!=".mp4":
@@ -8439,6 +8542,828 @@ def gif_video():
     button1.grid(row=2,column=0)
     button2.grid(row=2,column=1)
     entry1.insert(0,15)
+
+def metrome():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+    onoff=0
+
+    def main_frame1(n):
+        nonlocal onoff
+        onoff=1
+        if t.is_alive():
+            t.join()
+        main_frame(n)
+
+
+    def metrome1():
+        nonlocal t,onoff
+        button2["state"]="normal"
+        cycle=int(entry3.get())
+        button1["state"]="disabled"
+        root.update()
+        tone = int(entry4.get())-9
+        freq = int(440*2**(tone/12)) #周波数
+        sleep_time = (60/int(entry1.get())) - (int(entry2.get())/1000) #停止時間
+        if sleep_time>0:
+            for i in range(cycle): #10回繰り返し
+                if onoff==0:
+                    winsound.Beep(freq, int(int(entry2.get()))) #440hz, 100ミリ秒の音
+                    time.sleep(sleep_time) #1秒間隔
+                else:
+                    return
+        else:
+            messagebox.showerror("エラー","BPMが高すぎます")
+        button1["state"]="normal"
+        t=threading.Thread(target=metrome1,daemon=True)
+        button2["state"]="disabled"
+        onoff=0
+        root.update()
+        return
+
+    def on():
+        nonlocal onoff,t
+        onoff=1
+        t.join()
+        button1["state"]="normal"
+        t=threading.Thread(target=metrome1,daemon=True)
+        onoff=0
+        button2["state"]="disabled"
+        return
+
+    t=threading.Thread(target=metrome1,daemon=True)
+    label1=ttk.Label(frame,text="BPM：")
+    entry1=ttk.Entry(frame,width=10)
+    label2=ttk.Label(frame,text="音の長さ(ms)：")
+    entry2=ttk.Entry(frame,width=10)
+    label3=ttk.Label(frame,text="くり返し回数：")
+    entry3=ttk.Entry(frame,width=10)
+    label4=ttk.Label(frame,text="音の高さ(0~)：")
+    entry4=ttk.Entry(frame,width=10)
+    button1=ttk.Button(frame,text="開始",command=lambda:t.start())
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame1(1),font=("Helvetica", 7),bg="gray",fg="white")
+    button2=ttk.Button(frame,text="停止",command=on, state="disabled")
+
+    entry1.insert(0,60)
+    entry2.insert(0,50)
+    entry3.insert(0,5)
+    entry4.insert(0,9)
+
+    frame.pack()
+    buttonY.grid(row=0,column=0)
+    buttonX.grid(row=0,column=1)
+    label1.grid(row=1,column=0)
+    entry1.grid(row=1,column=1)
+    label2.grid(row=2,column=0)
+    entry2.grid(row=2,column=1)
+    label3.grid(row=3,column=0)
+    entry3.grid(row=3,column=1)
+    label4.grid(row=4,column=0)
+    entry4.grid(row=4,column=1)
+    button1.grid(row=5,column=0)
+    button2.grid(row=5,column=1)
+
+def ogp():
+    img=None
+    img_url=None
+    def handler():
+        nonlocal img,img_url
+        clipboard=urllib.parse.quote(clip.paste())
+        url=f"https://kotsukotsu-ogp-api.vercel.app/api/ogp?url={clipboard}"
+        response = requests.get(url)
+        data = response.json()
+        if data.get("image") is None:
+            img_url=""
+        else:
+            img_url=data["image"]
+        if data.get("title") is None:
+            title=""
+        else:
+            title=data["title"]
+        if data.get("description") is None:
+            description=""
+        else:
+            description=data["description"]
+
+        parsed_url = urlparse(img_url)
+        path = parsed_url.path
+        extension = os.path.splitext(path)[1]
+        file_name=f"temp{extension}"
+
+        entry1.insert(0,title)
+        box.insert(1.0,description)
+
+        if img_url=="":
+            return
+        response = requests.get(img_url)
+        make_folder(os.getcwd()+"/temp1/ogp")
+        with open(os.getcwd()+"/temp1/ogp"+"/"+file_name, 'wb') as f:
+            f.write(response.content)
+        pil=Image.open(os.getcwd()+"/temp1/ogp"+"/"+file_name)
+        img=ImageTk.PhotoImage(pil)
+        w,h=pil.size
+
+        canvas.config(width=w,height=h)
+        canvas.canvas_img = img
+
+        canvas.create_image(w*0.5,h*0.5,image=img)
+        canvas.update()
+
+    root1=Toplevel()
+    root1.attributes("-topmost", True)
+    canvas=Canvas(root1)
+    entry1=ttk.Entry(root1,width=75)
+    label1=ttk.Label(root1,text="説明：")
+    box=Text(root1,width=75,height=5)
+
+
+    entry1.grid(row=0,column=0,columnspan=2)
+    label1.grid(row=1,column=0,columnspan=2)
+    box.grid(row=2,column=0,columnspan=2)
+    canvas.grid(row=3,column=0,columnspan=2)
+    handler()
+
+    def showMenu(e):
+        pmenu.post(e.x_root, e.y_root)
+    def copy():
+        clip.copy(img_url)
+    pmenu = Menu(root1, tearoff=0)
+    pmenu.add_command(label="画像URLコピー", command=copy)
+    root1.bind("<Button-3>", showMenu)
+
+def copy_image():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def dnd(drop):
+        path=drop.data.replace("{","").replace("}","").replace("\\","/")
+        original_image = Image.open(path)
+        output = io.BytesIO()
+        make_folder(os.getcwd()+"/temp1/copy_image")
+        original_image.save(os.getcwd()+"/temp1/copy_image/temp.png")
+        original_image1 = Image.open(os.getcwd()+"/temp1/copy_image/temp.png")
+        original_image1.convert('RGB').save(output, 'BMP')
+        data = output.getvalue()[14:]
+        output.close()
+        win32clipboard.OpenClipboard()
+        win32clipboard.EmptyClipboard()
+        win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
+        win32clipboard.CloseClipboard()
+        messagebox.showinfo("完了","クリップボードにコピーしました")
+
+    label=ttk.Label(frame,text="画像をここに\nドロップしてください",font=("Helvetica", 20))
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+    frame.drop_target_register(DND_FILES)
+    frame.dnd_bind('<<Drop>>',dnd)
+
+    frame.pack()
+    buttonY.grid(row=0,column=0)
+    buttonX.grid(row=0,column=1)
+    label.grid(row=1,column=0,columnspan=2)
+
+def cloud_download():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def cloud_download1():
+        url=clip.paste()
+        try:
+            if var.get()==0:
+                pattern = r'\/d/(.*?)\/view'
+                matches = re.findall(pattern, url)
+                if matches==[]:
+                    pattern = r'\/d/(.*?)\/edit'
+                matches = re.findall(pattern, url)
+                url1="https://drive.google.com/u/4/uc?id="+matches[0]+"&export=download"
+            elif var.get()==1:
+                url1=url.replace("dl=0","dl=1")
+            clip.copy(url1)
+            messagebox.showinfo("完了","DLリンクをコピーしました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
+
+    var=IntVar()
+    var.set(0)
+    radio1=Radiobutton(frame,text="Google Drive",variable=var,value=0)
+    radio2=Radiobutton(frame,text="Dropbox",variable=var,value=1)
+    button=ttk.Button(frame,text="DLリンク変更コピー",command=cloud_download1)
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    radio1.grid(row=1,column=0)
+    radio2.grid(row=1,column=1)
+    button.grid(row=2,column=0,columnspan=2)
+
+def voice_concat():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root, padding=12)
+
+    def voice_concat_top():
+        output=filedialog.asksaveasfilename(
+            title = "名前を付けて保存",
+            filetypes = [("MP3", ".mp3"),("WAV", ".wav")],
+            defaultextension = "mp3"
+            )
+        clip1 = AudioFileClip(entry1.get())
+        clip2 = AudioFileClip(entry2.get())
+        clip = concatenate_audioclips([clip1, clip2])
+        clip.write_audiofile(output,logger=None)
+        messagebox.showinfo("終了","結合完了しました")
+
+    def drag_voice1(drop):
+        x=drop.data.replace("{","").replace("}","").replace("\\","/")
+        entry1.delete(0,END)
+        entry1.insert(0,x)
+
+    def drag_voice2(drop):
+        x=drop.data.replace("{","").replace("}","").replace("\\","/")
+        entry2.delete(0,END)
+        entry2.insert(0,x)
+
+
+    label1=ttk.Label(frame,text="前半の動画をここにドロップ：")
+    label2=ttk.Label(frame,text="後半の動画をここにドロップ：")
+    entry1=ttk.Entry(frame,width=20)
+    entry2=ttk.Entry(frame,width=20)
+    button=ttk.Button(frame,text="結合",command=voice_concat_top)
+    entry1.drop_target_register(DND_FILES)
+    entry1.dnd_bind('<<Drop>>',drag_voice1)
+    entry2.drop_target_register(DND_FILES)
+    entry2.dnd_bind('<<Drop>>',drag_voice2)
+    label1.drop_target_register(DND_FILES)
+    label1.dnd_bind('<<Drop>>',drag_voice1)
+    label2.drop_target_register(DND_FILES)
+    label2.dnd_bind('<<Drop>>',drag_voice2)
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label1.grid(row=1,column=0)
+    entry1.grid(row=1,column=1)
+    label2.grid(row=2,column=0)
+    entry2.grid(row=2,column=1)
+    button.grid(row=3,column=0,columnspan=2)
+
+def json_format():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def json_formatA(txt):
+        root1=Toplevel()
+        root1.attributes("-topmost", True)
+        box=ScrolledText(root1,width=75,height=20)
+        box.pack(expand=True,side=TOP,fill=BOTH)
+        box.insert(1.0,txt)
+
+    def json_format1():
+        s=clip.paste()
+        try:
+            x=json.loads(s)
+            json_formatA(json.dumps(x,indent=2,ensure_ascii=False))
+
+        except:
+            messagebox.showerror("エラー","失敗しました")
+
+    def json_format2(drop):
+        file1=drop.data.replace("{","").replace("}","").replace("\\","/")
+        try:
+            with open(file1, "r",encoding="utf-8") as f:
+                dic = f.read()
+            x=json.loads(dic)
+            json_formatA(json.dumps(x,indent=2,ensure_ascii=False))
+        except:
+            messagebox.showerror("エラー","失敗しました")
+
+
+    label=ttk.Label(frame,text="JSONをここに\nドロップしてください",font=("Helvetica", 20))
+    button=ttk.Button(frame,text="クリップボード入力整形",command=json_format1)
+    label.drop_target_register(DND_FILES)
+    label.dnd_bind('<<Drop>>',json_format2)
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+
+    frame.pack()
+    buttonY.grid(row=0,column=0)
+    buttonX.grid(row=0,column=1)
+    label.grid(row=1,column=0,columnspan=2)
+    button.grid(row=2,column=0,columnspan=2)
+
+def env_word():
+    root1=Toplevel()
+    root1.attributes("-topmost", True)
+    root1.title("環境変数")
+    root1.geometry("850x500")
+
+    def copy_to_clipboard(text):
+        clip.copy(text)
+
+    def on_treeview_click(event):
+        item = tree.selection()[0]
+        key, value = tree.item(item, 'values')
+        menu = Menu(root, tearoff=0)
+        menu.add_command(label="keyをコピー", command=lambda: copy_to_clipboard(key))
+        menu.add_command(label="Valueをコピー", command=lambda: copy_to_clipboard(value))
+        x, y = root1.winfo_pointerx(), root1.winfo_pointery()
+        menu.post(x, y)
+
+    def display_data(data):
+        for key, value in data.items():
+            tree.insert('', 'end', values=(key, value))
+
+    env_dic=os.environ
+
+    tree = ttk.Treeview(root1, columns=("Key", "Value"), show="headings")
+    tree.heading("Key", text="Key")
+    tree.heading("Value", text="Value")
+    display_data(env_dic)
+    tree.pack(expand=True, fill=BOTH,side=LEFT)
+
+    scrollbar = ttk.Scrollbar(root1, orient=VERTICAL, command=tree.yview)
+    tree.configure(yscroll=scrollbar.set)
+    scrollbar.pack(side=RIGHT, fill=Y)
+
+    tree.bind("<<TreeviewSelect>>", on_treeview_click)
+
+def seiwa():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def seiwa1():
+        year=entry1.get()
+        if var.get()==0:
+            try:
+                year1=int(year)
+                w2j = jeraconv.W2J()
+                result1=w2j.convert(year1, 1, 1, return_type='list')
+                if result1[1]<0:
+                    messagebox.showerror("エラー","古すぎるため変換できません")
+                    return
+                result=f"{result1[0]} {result1[1]}年"
+                entry2.delete(0,END)
+                entry2.insert(0,result)
+            except:
+                messagebox.showerror("エラー","変換できませんでした")
+        elif var.get()==1:
+            try:
+                j2w = jeraconv.J2W()
+                result=j2w.convert(year)
+                entry2.delete(0,END)
+                entry2.insert(0,result)
+            except:
+                messagebox.showerror("エラー","変換できませんでした")
+
+    var=IntVar()
+    var.set(0)
+    radio1=Radiobutton(frame,text="西暦→和暦",variable=var,value=0)
+    radio2=Radiobutton(frame,text="和暦→西暦",variable=var,value=1)
+    entry1=ttk.Entry(frame,width=20)
+    label1=ttk.Label(frame,text="年を入力")
+    button=ttk.Button(frame,text="変換",command=seiwa1)
+    entry2=ttk.Entry(frame,width=20)
+    label2=ttk.Label(frame,text="結果")
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    radio1.grid(row=1,column=0)
+    radio2.grid(row=1,column=1)
+    label1.grid(row=2,column=0)
+    entry1.grid(row=2,column=1)
+    button.grid(row=3,column=0,columnspan=2)
+    label2.grid(row=4,column=0)
+    entry2.grid(row=4,column=1)
+
+def wallpaper():
+    global button143
+    root1=Toplevel()
+    root1.attributes("-topmost", True)
+    root1.title("壁紙スライド")
+
+    def delete_window():
+        if a is not None:
+            root1.after_cancel(a)
+        button143["state"]="normal"
+        root1.destroy()
+
+    file_list=[]
+    a=None
+    SPI_SETDESKWALLPAPER = 20
+    SystemParametersInfo = ctypes.windll.user32.SystemParametersInfoW
+    count=0
+
+    def set_wallpaper(image_list):
+        nonlocal count,a
+        result = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, image_list[count], 3)
+        if result==False:
+            messagebox.showerror("エラー","失敗しました")
+        count=(count+1)%len(image_list)
+        if count==0 and wallpaper_random.get()==1:
+            image_list1=random.sample(image_list,len(image_list))
+        else:
+            image_list1=image_list
+        a=root1.after(int(entry2.get())*1000,lambda:set_wallpaper(image_list1))
+
+    def wallpaper1():
+        nonlocal file_list
+        folder_path=filedialog.askdirectory(title="フォルダを選択してください")
+        file_list = [os.path.join(folder_path, file_name) for file_name in os.listdir(folder_path)]
+        label1["text"]=folder_path
+
+    def wallpaper2():
+        nonlocal a
+        if a is not  None:
+            root1.after_cancel(a)
+        if file_list==[]:
+            messagebox.showerror("エラー","フォルダを選択してください")
+        elif entry2.get()=="":
+            messagebox.showerror("エラー","時間間隔を入力してください")
+        else:
+            if wallpaper_random.get()==1:
+                new=random.sample(file_list,len(file_list))
+            else:
+                new=file_list
+            set_wallpaper(new)
+
+    root1.protocol("WM_DELETE_WINDOW", delete_window)
+
+    button1=ttk.Button(root1,text="壁紙のあるフォルダを指定",command=wallpaper1)
+    label1=ttk.Label(root1,text="壁紙のあるフォルダを指定してください")
+    wallpaper_random=IntVar()
+    check1=ttk.Checkbutton(root1,text="ランダム",onvalue=1,offvalue=0,variable=wallpaper_random)
+    button2=ttk.Button(root1,text="壁紙スライドショー開始",command=wallpaper2)
+    label2=ttk.Label(root1,text="壁紙スライドショー感覚(秒)")
+    entry2=ttk.Entry(root1,width=10)
+
+    button1.grid(row=0,column=0)
+    label1.grid(row=0,column=1)
+    label2.grid(row=1,column=0)
+    entry2.grid(row=1,column=1)
+    check1.grid(row=2,column=0)
+    button2.grid(row=2,column=1)
+    button143["state"]="disabled"
+
+def pdf_image():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def pdf_image1(drop):
+        file1=drop.data.replace("{","").replace("}","").replace("\\","/")
+        reader=pypdf.PdfReader(file1)
+        path=filedialog.askdirectory(title="保存先を選択してください")
+        for i in range(len(reader.pages)):
+            page=reader.pages[i]
+            count = 0
+            for image_file_object in page.images:
+                with open(path+f"/{i+1}_"+str(count) + image_file_object.name, "wb") as fp:
+                    fp.write(image_file_object.data)
+                    count += 1
+        messagebox.showinfo("完了","画像を保存しました")
+
+    label1=ttk.Label(frame,text="PDFをここに\nドロップしてください",font=("Helvetica", 20))
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+    frame.drop_target_register(DND_FILES)
+    frame.dnd_bind('<<Drop>>',pdf_image1)
+
+    frame.pack()
+    buttonY.grid(row=0,column=0)
+    buttonX.grid(row=0,column=1)
+    label1.grid(row=1,column=0,columnspan=2)
+
+def pdf_press():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def pdf_press1(drop):
+        files=drop.data.replace("{","").replace("}","").replace("\\","/")
+        file_list=file_mult(files)
+        try:
+            for file1 in file_list:
+                if var.get()==0:
+                    reader = pypdf.PdfReader(file1)
+                    writer = pypdf.PdfWriter()
+                    name=os.path.basename(file1)
+                    path=file1.replace(name,"duplication_"+name)
+                    for page in reader.pages:
+                        writer.add_page(page)
+                    writer.add_metadata(reader.metadata)
+                    with open(path, "wb") as fp:
+                        writer.write(fp)
+                elif var.get()==1:
+                    reader = pypdf.PdfReader(file1)
+                    writer = pypdf.PdfWriter()
+                    name=os.path.basename(file1)
+                    path=file1.replace(name,"image_"+name)
+                    for page in reader.pages:
+                        writer.add_page(page)
+                    for page in writer.pages:
+                        for img in page.images:
+                            img.replace(img.image, quality=60)
+                    with open(path, "wb") as f:
+                        writer.write(f)
+                elif var.get()==2:
+                    reader = pypdf.PdfReader(file1)
+                    writer = pypdf.PdfWriter()
+                    name=os.path.basename(file1)
+                    path=file1.replace(name,"compress_"+name)
+                    for page in reader.pages:
+                        writer.add_page(page)
+                    for page in writer.pages:
+                        page.compress_content_streams(level=9)  # This is CPU intensive!
+                    with open(path, "wb") as f:
+                        writer.write(f)
+            messagebox.showinfo("完了","処理が完了しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
+
+    var=IntVar()
+    var.set(0)
+    radio1=Radiobutton(frame,text="オブジェクト重複削除",variable=var,value=0)
+    radio2=Radiobutton(frame,text="画像画質圧縮",variable=var,value=1)
+    radio3=Radiobutton(frame,text="PDF可逆圧縮",variable=var,value=2)
+    label1=ttk.Label(frame,text="PDFをここに\nドロップしてください",font=("Helvetica", 20))
+    label1.drop_target_register(DND_FILES)
+    label1.dnd_bind('<<Drop>>',pdf_press1)
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+
+    frame.pack()
+    buttonX.grid(row=0,column=1,columnspan=2)
+    buttonY.grid(row=0,column=0)
+    radio1.grid(row=1,column=0)
+    radio2.grid(row=1,column=1)
+    radio3.grid(row=1,column=2)
+    label1.grid(row=2,column=0,columnspan=3)
+
+def pdf_rotate():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def pdf_rotate1(drop):
+        files=drop.data.replace("{","").replace("}","").replace("\\","/")
+        file_list=file_mult(files)
+        for path in file_list:
+            try:
+                reader = pypdf.PdfReader(path)
+                writer = pypdf.PdfWriter()
+                name=os.path.basename(path)
+                path=path.replace(name,f"rotate{int(entry2.get())-1}_"+name)
+                for page in reader.pages:
+                    writer.add_page(page)
+                writer.pages[int(entry2.get())-1].rotate(int(entry1.get()))
+                with open(path, "wb") as fp:
+                    writer.write(fp)
+            except:
+                messagebox.showerror("エラー",f"{path}\nで失敗しました")
+        messagebox.showinfo("完了","回転しました")
+
+    label1=ttk.Label(frame,text="PDFをここに\nドロップしてください",font=("Helvetica", 20))
+    label2=ttk.Label(frame,text="回転角度")
+    entry1=ttk.Entry(frame,width=10)
+    label3=ttk.Label(frame,text="ページ")
+    entry2=ttk.Entry(frame,width=10)
+    entry1.insert(0,90)
+    entry2.insert(0,1)
+    frame.drop_target_register(DND_FILES)
+    frame.dnd_bind('<<Drop>>',pdf_rotate1)
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label2.grid(row=1,column=0)
+    entry1.grid(row=1,column=1)
+    label3.grid(row=2,column=0)
+    entry2.grid(row=2,column=1)
+    label1.grid(row=3,column=0,columnspan=2)
+
+def window_kill():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def get_active_window_info():
+        # アクティブなウィンドウのハンドルを取得
+        hwnd = win32gui.GetForegroundWindow()
+
+        # アクティブなウィンドウのプロセスIDを取得
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+
+        return hwnd, pid
+
+    def kill_process_by_pid(pid):
+        try:
+            os.system(f"taskkill /F /PID {pid}")
+        except Exception as e:
+            messagebox.showerror("エラー",f"プロセスを終了できませんでした: {e}")
+
+    def on_release(key):
+        if key == keyboard.Key.pause:
+            # アクティブなウィンドウ取得
+                hwnd, pid = get_active_window_info()
+                if pid:
+                    kill_process_by_pid(pid)
+                else:
+                    messagebox.showerror("エラー","失敗しました")
+
+    def main_frame1(num):
+        listener.stop()
+        t.join()
+        root.protocol("WM_DELETE_WINDOW", frame_delete)
+        main_frame(num)
+
+    def stopping():
+        listener.stop()
+        t.join()
+        frame_delete()
+
+    listener=None
+    root.protocol("WM_DELETE_WINDOW", stopping)
+    label=ttk.Label(frame,text="pauseキーで\nウィンドウを強制終了させます",font=("Helvetica", 16))
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame1(3),font=("Helvetica", 7),bg="gray",fg="white")
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label.grid(row=1,column=0,columnspan=2)
+    def listen_thread():
+        nonlocal listener
+        with keyboard.Listener(on_release=on_release) as listener:
+            listener.join()
+
+    t = threading.Thread(target=listen_thread, daemon=True)
+    t.start()
+
+def time_calc():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def time_calc1():
+        if combo.get()=="基準年月日から指定日数後の年月日を計算":
+            dt1=datetime.strptime(entry1.get(),'%Y/%m/%d')
+            dt2=timedelta(days=int(entry2.get()))
+            dt3=str((dt1+dt2).strftime("%Y/%m/%d"))
+        elif combo.get()=="基準年月日から指定年月日までの日数を計算":
+            dt1=datetime.strptime(entry1.get(),'%Y/%m/%d')
+            dt2=datetime.strptime(entry2.get(),'%Y/%m/%d')
+            dt3=str(dt1-dt2).split(",")[0].replace("days","日後").replace("day","日後")
+        label3["text"]="結果："+dt3
+
+    def on_combobox_select(event):
+        if combo.get()=="基準年月日から指定日数後の年月日を計算":
+            label2["text"]="指定日数(-で前日)"
+        elif combo.get()=="基準年月日から指定年月日までの日数を計算":
+            label2["text"]="指定年月日(年/月/日)"
+        entry2.delete(0,END)
+        label3["text"]="結果："
+
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+    entry1=ttk.Entry(frame,width=20)
+    combo=ttk.Combobox(frame,values=["基準年月日から指定日数後の年月日を計算","基準年月日から指定年月日までの日数を計算"],width=40,state="readonly")
+    combo.current(0)
+    entry2=ttk.Entry(frame,width=20)
+    label1=ttk.Label(frame,text="基準年月日(年/月/日)")
+    label2=ttk.Label(frame,text="指定日数(-で前日)")
+    button=ttk.Button(frame,text="計算",command=time_calc1)
+    label3=ttk.Label(frame,text="結果：")
+    combo.bind("<<ComboboxSelected>>", on_combobox_select)
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label1.grid(row=1,column=0)
+    entry1.grid(row=1,column=1)
+    combo.grid(row=2,column=0,columnspan=2)
+    label2.grid(row=3,column=0)
+    entry2.grid(row=3,column=1)
+    button.grid(row=4,column=0,columnspan=2)
+    label3.grid(row=5,column=0,columnspan=2)
+
+def golden_ratio():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def golden_ratio1():
+        if var.get()==0:
+            result=round(int(entry1.get())*1.618033988749894848204586834365,2)
+            entry2.delete(0,END)
+            entry2.insert(0,f"幅：{result} & 高さ：{int(entry1.get())}")
+        elif var.get()==1:
+            result=round(int(entry1.get())/1.618033988749894848204586834365,2)
+            entry2.delete(0,END)
+            entry2.insert(0,f"幅：{int(entry1.get())} & 高さ：{result}")
+
+    var=IntVar()
+    var.set(0)
+    label1=ttk.Label(frame,text="基準の長さ：")
+    radio1=ttk.Radiobutton(frame,text="基準を幅",variable=var,value=0)
+    radio2=ttk.Radiobutton(frame,text="基準を高さ",variable=var,value=1)
+    button=ttk.Button(frame,text="計算",command=golden_ratio1)
+    label2=ttk.Label(frame,text="黄金比：")
+    entry1=ttk.Entry(frame,width=20)
+    entry2=ttk.Entry(frame,width=30)
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label1.grid(row=1,column=0)
+    entry1.grid(row=1,column=1)
+    radio1.grid(row=2,column=0)
+    radio2.grid(row=2,column=1)
+    button.grid(row=3,column=0,columnspan=2)
+    label2.grid(row=4,column=0)
+    entry2.grid(row=4,column=1)
+
+def piano():
+    root1=Toplevel()
+    root1.attributes("-topmost", True)
+    root1.title("電子音ピアノ")
+
+    def piano1(n):
+        duration = 50 #1音の長さ：通常 50, 推奨 10~100 長くしすぎるとBPMに影響
+        tone_d = n-9
+        freq = int(440*2**(tone_d/12)) #周波数
+        winsound.Beep(freq, int(duration)) #440hz, 100ミリ秒の音
+
+    button1=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(1))
+    button3=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(3))
+    button5=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(5))
+    button6=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(6))
+    button8=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(8))
+    button10=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(10))
+    button11=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(11))
+    button13=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(13))
+    button15=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(15))
+    button16=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(16))
+    button17=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(17))
+    button18=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(18))
+    button20=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(20))
+    button22=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(22))
+    button23=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(23))
+    button25=Button(root1,width=5,height=10,bg="lightgray",command=lambda:piano1(25))
+
+
+    button2=Button(root1,width=3,height=5,bg="black",command=lambda:piano1(2))
+    button4=Button(root1,width=3,height=5,bg="black",command=lambda:piano1(4))
+    button7=Button(root1,width=3,height=5,bg="black",command=lambda:piano1(7))
+    button9=Button(root1,width=3,height=5,bg="black",command=lambda:piano1(9))
+    button12=Button(root1,width=3,height=5,bg="black",command=lambda:piano1(12))
+    button14=Button(root1,width=3,height=5,bg="black",command=lambda:piano1(14))
+    button16=Button(root1,width=3,height=5,bg="black",command=lambda:piano1(16))
+    button19=Button(root1,width=3,height=5,bg="black",command=lambda:piano1(19))
+    button21=Button(root1,width=3,height=5,bg="black",command=lambda:piano1(21))
+    button24=Button(root1,width=3,height=5,bg="black",command=lambda:piano1(24))
+
+    button1.grid(row=0,column=0)
+    button2.grid(row=0,column=0,columnspan=2,sticky=N)
+    button3.grid(row=0,column=1)
+    button4.grid(row=0,column=1,columnspan=2,sticky=N)
+    button5.grid(row=0,column=2)
+    button6.grid(row=0,column=3)
+    button7.grid(row=0,column=3,columnspan=2,sticky=N)
+    button8.grid(row=0,column=4)
+    button9.grid(row=0,column=4,columnspan=2,sticky=N)
+    button10.grid(row=0,column=5)
+    button11.grid(row=0,column=6)
+    button12.grid(row=0,column=6,columnspan=2,sticky=N)
+    button13.grid(row=0,column=7)
+    button14.grid(row=0,column=0+7,columnspan=2,sticky=N)
+    button15.grid(row=0,column=1+7)
+    button16.grid(row=0,column=1+7,columnspan=2,sticky=N)
+    button17.grid(row=0,column=2+7)
+    button18.grid(row=0,column=3+7)
+    button19.grid(row=0,column=3+7,columnspan=2,sticky=N)
+    button20.grid(row=0,column=4+7)
+    button21.grid(row=0,column=4+7,columnspan=2,sticky=N)
+    button22.grid(row=0,column=5+7)
+    button23.grid(row=0,column=6+7)
+    button24.grid(row=0,column=6+7,columnspan=2,sticky=N)
+    button25.grid(row=0,column=7+7)
 
 
 # GUI
