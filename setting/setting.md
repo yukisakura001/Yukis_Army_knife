@@ -14,6 +14,8 @@ IPアドレス確認：http://checkip.dyndns.com/
 
 パスワードチェック：https://api.pwnedpasswords.com/range/
 
+* ソース：https://haveibeenpwned.com/
+
 通信先特定①：https://ipapi.co/
 
 通信先特定②：http://ip-api.com/
