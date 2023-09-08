@@ -91,6 +91,7 @@ import sv_ttk
 import winsound
 import win32clipboard
 from jeraconv import jeraconv
+import datauri
 
 #def on_minimize(event):
 #    #root.deiconify()
@@ -106,7 +107,7 @@ class Tk(ThemedTk, TkinterDnD.DnDWrapper):
         super().__init__(*args, **kwargs)
         self.TkdndVersion = TkinterDnD._require(self)
 
-version="5.4"
+version="5.5"
 # メイン画面
 def set_frame1(page_x):
     global frame1,button45,button69,buttonY,button143
@@ -320,7 +321,7 @@ def set_frame1(page_x):
     button24=ttk.Button(
         frame_image1,
         width=12,
-        text="PDF分解",
+        text="PDF分解・抽出",
         command=pdf_split
     )
     button25=ttk.Button(
@@ -956,14 +957,14 @@ def set_frame1(page_x):
     button130=ttk.Button(
         frame_text3,
         width=12,
-        text="Excel→CSV",
+        text="Excel↔CSV",
         command=excel_csv
     )
     button131=ttk.Button(
         frame_text3,
         width=12,
-        text="CSV→Excel",
-        command=csv_excel
+        text="JSON↔CSV",
+        command=json_csv
     )
     button132=ttk.Button(
         frame_text1,
@@ -1437,18 +1438,25 @@ def left_click_action(icon, item):
 # 機能の関数
 
 def count():
-    x=clip.paste().replace("\r","") # 全文字
-    y=x.replace('\n', '').replace("\r","").replace("\r\n","") # 改行なし
-    z=y.replace(" ","").replace("　","").strip() # 空白なし
-    s=[line for line in clip.paste().splitlines() if line.strip()]
-    byte=len(x.encode("utf-8"))
-    return messagebox.showinfo("文字数カウント",f"全文字：{len(x)}\n改行なし：{len(y)}\n改行・空白なし：{len(z)}\n行数（空行なし）：{len(s)}\nバイト数：{byte}")
+    try:
+        x=clip.paste().replace("\r","") # 全文字
+        y=x.replace('\n', '').replace("\r","").replace("\r\n","") # 改行なし
+        z=y.replace(" ","").replace("　","").strip() # 空白なし
+        s=[line for line in clip.paste().splitlines() if line.strip()]
+        byte=len(x.encode("utf-8"))
+        return messagebox.showinfo("文字数カウント",f"全文字：{len(x)}\n改行なし：{len(y)}\n改行・空白なし：{len(z)}\n行数（空行なし）：{len(s)}\nバイト数：{byte}")
+    except:
+        return messagebox.showerror("エラー","うまくクリップボードを取得できませんでした。")
+
 
 def blank():
-    text_data=clip.paste()
-    x=text_data.replace(" ","").replace("　","").strip()
-    clip.copy(x)
-    messagebox.showinfo("終了","終了しました")
+    try:
+        text_data=clip.paste()
+        x=text_data.replace(" ","").replace("　","").strip()
+        clip.copy(x)
+        messagebox.showinfo("終了","終了しました")
+    except:
+        messagebox.showerror("エラー","うまくクリップボードを取得できませんでした。")
 
 def tikan():
     global frame,buttonY
@@ -1456,9 +1464,12 @@ def tikan():
     frame = ttk.Frame(root, padding=16)
 
     def tikan1():
-        x=clip.paste()
-        clip.copy(x.replace(str(t1.get()),str(t2.get())))
-        messagebox.showinfo("終了","終了しました")
+        try:
+            x=clip.paste()
+            clip.copy(x.replace(str(t1.get()),str(t2.get())))
+            messagebox.showinfo("終了","終了しました")
+        except:
+            messagebox.showerror("エラー","置換に失敗しました")
 
     t1 = StringVar()
     t2 = StringVar()
@@ -1693,12 +1704,15 @@ def folder():
     frame1.destroy()
     frame = ttk.Frame(root, padding=4)
     def gr():
-        x=filedialog.askdirectory()
-        s = box.get( 0., END )
-        text=s.split(sep="\n")
-        for i in text:
-            os.makedirs(x+"/"+i,exist_ok=True)
-        messagebox.showinfo("終了","終了しました")
+        try:
+            x=filedialog.askdirectory()
+            s = box.get( 0., END )
+            text=s.split(sep="\n")
+            for i in text:
+                os.makedirs(x+"/"+i,exist_ok=True)
+            messagebox.showinfo("終了","終了しました")
+        except:
+            messagebox.showerror("エラー","うまくフォルダを作成できませんでした。")
 
 
     box=ScrolledText(
@@ -1758,6 +1772,12 @@ def count_down():
     frame1.destroy()
     frame = ttk.Frame(root, padding=4)
 
+    def reset_count():
+        try:
+            count_up.set(int(text.get()))
+        except:
+            messagebox.showerror("エラー","数字を入力してください")
+
     count_up=IntVar()
     count_up.set(0)
 
@@ -1788,7 +1808,7 @@ def count_down():
     button4=ttk.Button(
         frame,
         text="設定",
-        command=lambda : count_up.set(text.get())
+        command=reset_count
     )
     buttonX=ttk.Checkbutton(
     frame,
@@ -1816,9 +1836,12 @@ def choose():
     frame = ttk.Frame(root, padding=4)
 
     def choose_rurle():
-        x=box.get( 0., END ).split(sep="\n")
-        y=[i for i in x if i != '']
-        messagebox.showinfo("抽選結果",random.choice(y))
+        try:
+            x=box.get( 0., END ).split(sep="\n")
+            y=[i for i in x if i != '']
+            messagebox.showinfo("抽選結果",random.choice(y))
+        except:
+            messagebox.showerror("エラー","候補を入力してください")
 
     box=ScrolledText(
         frame,
@@ -1861,68 +1884,74 @@ def video_dwonload():
         return y
 
     def fast_video():
-        button_v1.configure(state='disabled')
-        button_v3.configure(state='disabled')
-        buttonY.configure(state='disabled')
-        root.update()
-        foldera=folder()
-        URL=url()
-        ydl_video_opts = {
-            'outtmpl':foldera+"/%(title)s"+'_.mp4',
-            'format':'best',
+        try:
+            button_v1.configure(state='disabled')
+            button_v3.configure(state='disabled')
+            buttonY.configure(state='disabled')
+            root.update()
+            foldera=folder()
+            URL=url()
+            ydl_video_opts = {
+                'outtmpl':foldera+"/%(title)s"+'_.mp4',
+                'format':'best',
+                'quiet': True,
+                'no-stdout': True,
+                'noprogress': True,
+                'no_warnings': True
+            }
+            with YoutubeDL(ydl_video_opts) as ydl:
+                ydl.download(URL)
+            messagebox.showinfo("終了","ダウンロード終了しました")
+            button_v1.configure(state='normal')
+            button_v3.configure(state='normal')
+            buttonY.configure(state='normal')
+            root.update()
+        except:
+            messagebox.showerror("エラー","うまくダウンロードできませんでした")
+
+    def fast_voice():
+        try:
+            button_v1.configure(state='disabled')
+            button_v3.configure(state='disabled')
+            buttonY.configure(state='disabled')
+            root.update()
+            foldera=folder()
+            URL=url()
+            folder_path = os.getcwd()+"/temp1/video"
+            make_folder(folder_path)
+            ydl_video_opts = {
+            'outtmpl': folder_path+"/"+"%(title)s.%(ext)s",
+            'format': 'bestaudio',
             'quiet': True,
             'no-stdout': True,
             'noprogress': True,
+            'extractaudio': True,
+            'audioformat': 'webm',
             'no_warnings': True
-        }
-        with YoutubeDL(ydl_video_opts) as ydl:
-            ydl.download(URL)
-        messagebox.showinfo("終了","ダウンロード終了しました")
-        button_v1.configure(state='normal')
-        button_v3.configure(state='normal')
-        buttonY.configure(state='normal')
-        root.update()
+            }
+            with YoutubeDL(ydl_video_opts) as ydl:
+                ydl.download(URL)
 
-    def fast_voice():
-        button_v1.configure(state='disabled')
-        button_v3.configure(state='disabled')
-        buttonY.configure(state='disabled')
-        root.update()
-        foldera=folder()
-        URL=url()
-        folder_path = os.getcwd()+"/temp1/video"
-        make_folder(folder_path)
-        ydl_video_opts = {
-        'outtmpl': folder_path+"/"+"%(title)s.%(ext)s",
-        'format': 'bestaudio',
-        'quiet': True,
-        'no-stdout': True,
-        'noprogress': True,
-        'extractaudio': True,
-        'audioformat': 'webm',
-        'no_warnings': True
-        }
-        with YoutubeDL(ydl_video_opts) as ydl:
-            ydl.download(URL)
+            urla = []
+            for file_name in os.listdir(folder_path):
+                if file_name.endswith(".webm"):
+                    urla.append(os.path.join(folder_path, file_name))
 
-        urla = []
-        for file_name in os.listdir(folder_path):
-            if file_name.endswith(".webm"):
-                urla.append(os.path.join(folder_path, file_name))
+            for x in urla:
+                x2=x.replace(folder_path,"")
+                x1= re.sub(r'[\\/*?:"<>|]', '', x2)
 
-        for x in urla:
-            x2=x.replace(folder_path,"")
-            x1= re.sub(r'[\\/*?:"<>|]', '', x2)
+                audio_clip = AudioFileClip(x)
+                audio_clip.write_audiofile(foldera+"/"+x1.replace("webm","mp3"),logger=None)
+                os.remove(x)
 
-            audio_clip = AudioFileClip(x)
-            audio_clip.write_audiofile(foldera+"/"+x1.replace("webm","mp3"),logger=None)
-            os.remove(x)
-
-        messagebox.showinfo("終了","ダウンロード終了しました")
-        button_v1.configure(state='normal')
-        button_v3.configure(state='normal')
-        buttonY.configure(state='normal')
-        root.update()
+            messagebox.showinfo("終了","ダウンロード終了しました")
+            button_v1.configure(state='normal')
+            button_v3.configure(state='normal')
+            buttonY.configure(state='normal')
+            root.update()
+        except:
+            messagebox.showerror("エラー","うまくダウンロードできませんでした")
 
 
     root.update()
@@ -1966,15 +1995,18 @@ def image_resize():
     frame = ttk.Frame(root, padding=12)
 
     def resize(drop):
-        file=drop.data.replace("{","").replace("}","").replace("\\","/")
-        x_list=file_mult(file)
-        for x in x_list:
-            img=Image.open(x)
-            img_resize=img.resize((int(entry_w.get()),int(entry_h.get())),Image.LANCZOS)
-            y= os.path.basename(x)
-            z=x.replace(y,"resize_"+y)
-            img_resize.save(z)
-        messagebox.showinfo("終了","リサイズ終了しました")
+        try:
+            file=drop.data.replace("{","").replace("}","").replace("\\","/")
+            x_list=file_mult(file)
+            for x in x_list:
+                img=Image.open(x)
+                img_resize=img.resize((int(entry_w.get()),int(entry_h.get())),Image.LANCZOS)
+                y= os.path.basename(x)
+                z=x.replace(y,"resize_"+y)
+                img_resize.save(z)
+            messagebox.showinfo("終了","リサイズ終了しました")
+        except:
+            messagebox.showerror("エラー","うまくリサイズできませんでした")
 
 
     label_w=ttk.Label(frame,text="横幅(px)：")
@@ -2012,26 +2044,29 @@ def image_change():
         file=drop.data.replace("{","").replace("}","").replace("\\","/")
         x_list=file_mult(file)
         for x in x_list:
-            img=Image.open(x)
-            name=os.path.basename(x)
-            youso=os.path.splitext(name)[1]
+            try:
+                img=Image.open(x)
+                name=os.path.basename(x)
+                youso=os.path.splitext(name)[1]
 
-            if v1.get()==1:
-                x_gif=x.replace(youso,".gif")
-                img.save(x_gif,"gif")
-            if v2.get()==1:
-                x_png=x.replace(youso,".png")
-                img.save(x_png,"png")
-            if v3.get()==1:
-                x_ico=x.replace(youso,".ico")
-                img.save(x_ico,"ico")
-            if v4.get()==1:
-                x_jpg=x.replace(youso,".jpg")
-                img=img.convert("RGB")
-                img.save(x_jpg,"jpeg",quality=100)
-            if v5.get()==1:
-                x_pdf=x.replace(youso,".pdf")
-                img.save(x_pdf,"pdf")
+                if v1.get()==1:
+                    x_gif=x.replace(youso,".gif")
+                    img.save(x_gif,"gif")
+                if v2.get()==1:
+                    x_png=x.replace(youso,".png")
+                    img.save(x_png,"png")
+                if v3.get()==1:
+                    x_ico=x.replace(youso,".ico")
+                    img.save(x_ico,"ico")
+                if v4.get()==1:
+                    x_jpg=x.replace(youso,".jpg")
+                    img=img.convert("RGB")
+                    img.save(x_jpg,"jpeg",quality=100)
+                if v5.get()==1:
+                    x_pdf=x.replace(youso,".pdf")
+                    img.save(x_pdf,"pdf")
+            except:
+                messagebox.showerror("エラー",f"{x}\nを変換できませんでした")
         messagebox.showinfo("終了","変換終了しました")
 
 
@@ -2074,31 +2109,37 @@ def qr_generate():
     frame = ttk.Frame(root, padding=12)
 
     def qr_show():
-        x=clip.paste()
-        img = qrcode.make(x)
-        folder_path = os.getcwd()+"/temp1/qr_temp"
-        make_folder(folder_path)
-        z=folder_path+"/temp.png"
-        img.save(z)
-        root2=Toplevel()
-        root2.title("QRコード")
-        canvas=Canvas(root2,width=img.size[0],height=img.size[1])
-        canvas.pack(expand = True, fill = BOTH)
-        pil_img1=Image.open(z)
-        canvas_img= ImageTk.PhotoImage(pil_img1)
-        canvas.canvas_img = canvas_img
-        canvas.create_image(pil_img1.width*0.5,pil_img1.height*0.5,image=canvas_img)
+        try:
+            x=clip.paste()
+            img = qrcode.make(x)
+            folder_path = os.getcwd()+"/temp1/qr_temp"
+            make_folder(folder_path)
+            z=folder_path+"/temp.png"
+            img.save(z)
+            root2=Toplevel()
+            root2.title("QRコード")
+            canvas=Canvas(root2,width=img.size[0],height=img.size[1])
+            canvas.pack(expand = True, fill = BOTH)
+            pil_img1=Image.open(z)
+            canvas_img= ImageTk.PhotoImage(pil_img1)
+            canvas.canvas_img = canvas_img
+            canvas.create_image(pil_img1.width*0.5,pil_img1.height*0.5,image=canvas_img)
+        except:
+            messagebox.showerror("エラー","うまくQRコードを作成できませんでした")
 
     def qr_save():
-        x=clip.paste()
-        img = qrcode.make(x)
-        y=filedialog.asksaveasfilename(
-        title = "名前を付けて保存",
-        filetypes = [("PNG", ".png")],
-        defaultextension = "png",
-        initialfile="QR"
-        )
-        img.save(y)
+        try:
+            x=clip.paste()
+            img = qrcode.make(x)
+            y=filedialog.asksaveasfilename(
+            title = "名前を付けて保存",
+            filetypes = [("PNG", ".png")],
+            defaultextension = "png",
+            initialfile="QR"
+            )
+            img.save(y)
+        except:
+            messagebox.showerror("エラー","うまくQRコードを保存できませんでした")
 
     button1=ttk.Button(frame,text="QRを表示",command=qr_show)
     button2=ttk.Button(frame,text="QRを保存",command=qr_save)
@@ -2124,91 +2165,102 @@ def qr_reader():
     frame = ttk.Frame(root, padding=12)
 
     def qr_read(drop):
-        x=drop.data.replace("{","").replace("}","").replace("\\","/")
-        img = cv2.imdecode(
-            np.fromfile(x, dtype=np.uint8),
-            cv2.IMREAD_UNCHANGED
-            )
-        qrDetector = cv2.QRCodeDetector()
-        data,_,_ = qrDetector.detectAndDecode(img)
-        y=data
-        clip.copy(y)
-        messagebox.showinfo("終了","認識終了しました")
-
-    def qr_read1():
-        root.iconify()
-        make_folder(os.getcwd()+"/temp1/qr_img")
-        n=pyautogui.screenshot(os.getcwd()+'/temp1/qr_img/temp.png')
-        root1=Toplevel()
-
-        def start():
-            nonlocal pil_img,pil_img1,canvas_img
-            pil_img=Image.open(os.getcwd()+'/temp1/qr_img/temp.png')
-            pil_img1=pil_img
-            canvas.config(width=pil_img1.width, height=pil_img1.height)
-            canvas_img= ImageTk.PhotoImage(pil_img1)
-            canvas.canvas_img = canvas_img
-            canvas.create_image(pil_img1.width*0.5,pil_img1.height*0.5,image=canvas_img)
-            root1.attributes('-fullscreen', True)
-
-
-        def on_press(event):
-            canvas.delete("rect")
-            nonlocal start_x
-            nonlocal start_y
-            start_x = canvas.canvasx(event.x)
-            start_y = canvas.canvasy(event.y)
-
-        def on_move_press(event):
-            nonlocal end_x, end_y
-            end_x, end_y = event.x, event.y
-            canvas.delete("rect")
-            canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="lightgreen", tags="rect", width=1.5)
-
-        def on_release(event):
-            nonlocal end_x, end_y
-            end_x, end_y = event.x, event.y
-            canvas.delete("rect")
-            canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="lightgreen", tags="rect", width=1.5)
-            root1.destroy()
-            triming()
-
-        def triming():
-            nonlocal start_x,start_y,end_x,end_y
-            if start_x>end_x:
-                start_x,end_x=end_x,start_x
-            if start_y>end_y:
-                start_y,end_y=end_y,start_y
-            crop=pil_img.crop((start_x,start_y,end_x,end_y))
-            crop.save(os.getcwd()+"/temp1/qr_img/temp1.png")
+        try:
+            x=drop.data.replace("{","").replace("}","").replace("\\","/")
             img = cv2.imdecode(
-                np.fromfile(os.getcwd()+"/temp1/qr_img/temp1.png", dtype=np.uint8),
+                np.fromfile(x, dtype=np.uint8),
                 cv2.IMREAD_UNCHANGED
                 )
             qrDetector = cv2.QRCodeDetector()
             data,_,_ = qrDetector.detectAndDecode(img)
             y=data
+            if y=="":
+                messagebox.showerror("エラー","うまくQRコードを読み取れませんでした")
+                return
             clip.copy(y)
-            os.remove(os.getcwd()+"/temp1/qr_img/temp.png")
-            os.remove(os.getcwd()+"/temp1/qr_img/temp1.png")
             messagebox.showinfo("終了","認識終了しました")
-            root.deiconify()
+        except:
+            messagebox.showerror("エラー","うまくQRコードを読み取れませんでした")
 
-        start_x=None
-        start_y=None
-        end_x=None
-        end_y=None
+    def qr_read1():
+        try:
+            root.iconify()
+            make_folder(os.getcwd()+"/temp1/qr_img")
+            n=pyautogui.screenshot(os.getcwd()+'/temp1/qr_img/temp.png')
+            root1=Toplevel()
 
-        pil_img=None
-        pil_img1=None
-        canvas_img=None
-        root.update()
-        canvas=Canvas(root1,width=300,height=300,bg="gray")
-        canvas.bind("<ButtonPress-1>", on_press)
-        canvas.bind("<ButtonRelease-1>", on_release)
-        canvas.bind("<B1-Motion>", on_move_press)
-        canvas.pack(expand=True,side=TOP)
-        root.after(10,start)
+            def start():
+                nonlocal pil_img,pil_img1,canvas_img
+                pil_img=Image.open(os.getcwd()+'/temp1/qr_img/temp.png')
+                pil_img1=pil_img
+                canvas.config(width=pil_img1.width, height=pil_img1.height)
+                canvas_img= ImageTk.PhotoImage(pil_img1)
+                canvas.canvas_img = canvas_img
+                canvas.create_image(pil_img1.width*0.5,pil_img1.height*0.5,image=canvas_img)
+                root1.attributes('-fullscreen', True)
+
+
+            def on_press(event):
+                canvas.delete("rect")
+                nonlocal start_x
+                nonlocal start_y
+                start_x = canvas.canvasx(event.x)
+                start_y = canvas.canvasy(event.y)
+
+            def on_move_press(event):
+                nonlocal end_x, end_y
+                end_x, end_y = event.x, event.y
+                canvas.delete("rect")
+                canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="lightgreen", tags="rect", width=1.5)
+
+            def on_release(event):
+                nonlocal end_x, end_y
+                end_x, end_y = event.x, event.y
+                canvas.delete("rect")
+                canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="lightgreen", tags="rect", width=1.5)
+                root1.destroy()
+                triming()
+
+            def triming():
+                nonlocal start_x,start_y,end_x,end_y
+                if start_x>end_x:
+                    start_x,end_x=end_x,start_x
+                if start_y>end_y:
+                    start_y,end_y=end_y,start_y
+                crop=pil_img.crop((start_x,start_y,end_x,end_y))
+                crop.save(os.getcwd()+"/temp1/qr_img/temp1.png")
+                img = cv2.imdecode(
+                    np.fromfile(os.getcwd()+"/temp1/qr_img/temp1.png", dtype=np.uint8),
+                    cv2.IMREAD_UNCHANGED
+                    )
+                qrDetector = cv2.QRCodeDetector()
+                data,_,_ = qrDetector.detectAndDecode(img)
+                y=data
+                if y=="":
+                    messagebox.showerror("エラー","うまくQRコードを読み取れませんでした")
+                clip.copy(y)
+                os.remove(os.getcwd()+"/temp1/qr_img/temp.png")
+                os.remove(os.getcwd()+"/temp1/qr_img/temp1.png")
+                messagebox.showinfo("終了","認識終了しました")
+                root.deiconify()
+
+            start_x=None
+            start_y=None
+            end_x=None
+            end_y=None
+
+            pil_img=None
+            pil_img1=None
+            canvas_img=None
+            root.update()
+            canvas=Canvas(root1,width=300,height=300,bg="gray")
+            canvas.bind("<ButtonPress-1>", on_press)
+            canvas.bind("<ButtonRelease-1>", on_release)
+            canvas.bind("<B1-Motion>", on_move_press)
+            canvas.pack(expand=True,side=TOP)
+            root.after(10,start)
+        except:
+            messagebox.showerror("エラー","うまくQRコードを読み取れませんでした")
 
     frame.drop_target_register(DND_FILES)
     frame.dnd_bind('<<Drop>>',qr_read)
@@ -2295,46 +2347,51 @@ def face_mosaic():
         label.grid(row=2,column=0,columnspan=2)
 
 def img_rotate():
-        global frame,buttonY
-        frame1.destroy()
-        frame = ttk.Frame(root, padding=12)
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root, padding=12)
 
-        def img_rotate1(drop):
+    def img_rotate1(drop):
             file=drop.data.replace("{","").replace("}","").replace("\\","/")
             x_list=file_mult(file)
             for x in x_list:
-                img=Image.open(x)
-                img_rotate=img.rotate(int(entry1.get()),resample=Image.BICUBIC,expand=True)
-                name=os.path.basename(x)
-                y=x.replace(name,"rotate_"+name)
-                img_rotate.save(y)
+                try:
+                    img=Image.open(x)
+                    img_rotate=img.rotate(int(entry1.get()),resample=Image.BICUBIC,expand=True)
+                    name=os.path.basename(x)
+                    y=x.replace(name,"rotate_"+name)
+                    img_rotate.save(y)
+                except:
+                    messagebox.showerror("エラー",f"{x}\nをうまく回転できませんでした")
             messagebox.showinfo("終了","回転が完了しました")
 
-        frame.drop_target_register(DND_FILES)
-        frame.dnd_bind('<<Drop>>',img_rotate1)
-        buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
-        label1=ttk.Label(frame,text="反時計回り(度)：")
-        entry1=ttk.Entry(frame)
-        label=ttk.Label(frame,text="ここにファイルを\nドロップしてください",font=("Helvetica", 16))
-        buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
-        entry1.insert(0,"180")
 
-        frame.pack()
-        buttonX.grid(row=0,column=1)
-        buttonY.grid(row=0,column=0)
-        label1.grid(row=1,column=0)
-        entry1.grid(row=1,column=1)
-        label.grid(row=2,column=0,columnspan=2)
+    frame.drop_target_register(DND_FILES)
+    frame.dnd_bind('<<Drop>>',img_rotate1)
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    label1=ttk.Label(frame,text="反時計回り(度)：")
+    entry1=ttk.Entry(frame)
+    label=ttk.Label(frame,text="ここにファイルを\nドロップしてください",font=("Helvetica", 16))
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+    entry1.insert(0,"180")
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label1.grid(row=1,column=0)
+    entry1.grid(row=1,column=1)
+    label.grid(row=2,column=0,columnspan=2)
 
 def img_gray():
-        global frame,buttonY
-        frame1.destroy()
-        frame = ttk.Frame(root, padding=12)
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root, padding=12)
 
-        def img_gray1(drop):
-            file=drop.data.replace("{","").replace("}","").replace("\\","/")
-            x_list=file_mult(file)
-            for x in x_list:
+    def img_gray1(drop):
+        file=drop.data.replace("{","").replace("}","").replace("\\","/")
+        x_list=file_mult(file)
+        for x in x_list:
+            try:
                 im = cv2.imdecode(
                     np.fromfile(x, dtype=np.uint8),
                     cv2.IMREAD_UNCHANGED
@@ -2346,18 +2403,20 @@ def img_gray():
 
                 _, buf = cv2.imencode(youso, im_gray)
                 buf.tofile(z)
-            messagebox.showinfo("終了","グレイスケール完了しました")
+            except:
+                messagebox.showerror("エラー",f"{x}\nをうまくグレイスケールできませんでした")
+        messagebox.showinfo("終了","グレイスケール完了しました")
 
-        frame.drop_target_register(DND_FILES)
-        frame.dnd_bind('<<Drop>>',img_gray1)
-        buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
-        label=ttk.Label(frame,text="ここにファイルを\nドロップしてください",font=("Helvetica", 16))
-        buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+    frame.drop_target_register(DND_FILES)
+    frame.dnd_bind('<<Drop>>',img_gray1)
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    label=ttk.Label(frame,text="ここにファイルを\nドロップしてください",font=("Helvetica", 16))
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
 
-        frame.pack()
-        buttonX.pack(side=TOP)
-        buttonY.pack(side=TOP)
-        label.pack(side=TOP)
+    frame.pack()
+    buttonX.pack(side=TOP)
+    buttonY.pack(side=TOP)
+    label.pack(side=TOP)
 
 def video_cut():
     global frame,buttonY
@@ -2368,14 +2427,17 @@ def video_cut():
         file=drop.data.replace("{","").replace("}","").replace("\\","/")
         x_list=file_mult(file)
         for x in x_list:
-            y= os.path.basename(x)
-            z=x.replace(y,"cut_"+y)
-            start=60*int(entry_start1.get())+float(entry_start2.get())
-            end=60*int(entry_end1.get())+float(entry_end2.get())
-            video1 = VideoFileClip(x)
-            video=video1.subclip(start, end)
-            video.write_videofile(z,logger=None)
-            video.close()
+            try:
+                y= os.path.basename(x)
+                z=x.replace(y,"cut_"+y)
+                start=60*int(entry_start1.get())+float(entry_start2.get())
+                end=60*int(entry_end1.get())+float(entry_end2.get())
+                video1 = VideoFileClip(x)
+                video=video1.subclip(start, end)
+                video.write_videofile(z,logger=None)
+                video.close()
+            except:
+                messagebox.showerror("エラー",f"{x}\nをうまくカットできませんでした")
         messagebox.showinfo("終了","カットが完了しました")
 
     frame.drop_target_register(DND_FILES)
@@ -2417,7 +2479,11 @@ def img_triming():
         x=drop.data.replace("{","").replace("}","").replace("\\","/")
         y= os.path.basename(x)
         z=x.replace(y,"crop_"+y)
-        pil_img=pil_img_1=Image.open(x)
+        try:
+            pil_img=pil_img_1=Image.open(x)
+        except:
+            messagebox.showerror("エラー",f"{x}\nをうまく開けませんでした")
+            return
         if pil_img.width>pil_img.height:
             origin=0
             pil_img=pil_img.resize((int(ws/2),int(pil_img.height*((ws/2)/pil_img.width))),Image.LANCZOS)
@@ -2453,28 +2519,31 @@ def img_triming():
 
     def triming():
         nonlocal origin
-        if origin==2:
-            start_x1=int(start_x*pil_img_1.height/int(hs/2))
-            start_y1=int(start_y*pil_img_1.height/int(hs/2))
-            end_x1=int(end_x*pil_img_1.height/int(hs/2))
-            end_y1=int(end_y*pil_img_1.height/int(hs/2))
-        elif origin==1:
-            start_x1=int(start_x*pil_img_1.width/int(pil_img_1.width*((hs/2)/pil_img_1.height)))
-            start_y1=int(start_y*pil_img_1.height/int(hs/2))
-            end_x1=int(end_x*pil_img_1.width/int(pil_img_1.width*((hs/2)/pil_img_1.height)))
-            end_y1=int(end_y*pil_img_1.height/int(hs/2))
-        elif origin==0:
-            start_x1=int(start_x*pil_img_1.width/int(ws/2))
-            start_y1=int(start_y*pil_img_1.height/int(pil_img_1.height*((ws/2)/pil_img_1.width)))
-            end_x1=int(end_x*pil_img_1.width/int(ws/2))
-            end_y1=int(end_y*pil_img_1.height/int(pil_img_1.height*((ws/2)/pil_img_1.width)))
-        if start_x1>end_x1:
-            start_x1,end_x1=end_x1,start_x1
-        if start_y1>end_y1:
-            start_y1,end_y1=end_y1,start_y1
-        crop=pil_img_1.crop((start_x1,start_y1,end_x1,end_y1))
-        crop.save(z)
-        messagebox.showinfo("終了","トリミング完了しました")
+        try:
+            if origin==2:
+                start_x1=int(start_x*pil_img_1.height/int(hs/2))
+                start_y1=int(start_y*pil_img_1.height/int(hs/2))
+                end_x1=int(end_x*pil_img_1.height/int(hs/2))
+                end_y1=int(end_y*pil_img_1.height/int(hs/2))
+            elif origin==1:
+                start_x1=int(start_x*pil_img_1.width/int(pil_img_1.width*((hs/2)/pil_img_1.height)))
+                start_y1=int(start_y*pil_img_1.height/int(hs/2))
+                end_x1=int(end_x*pil_img_1.width/int(pil_img_1.width*((hs/2)/pil_img_1.height)))
+                end_y1=int(end_y*pil_img_1.height/int(hs/2))
+            elif origin==0:
+                start_x1=int(start_x*pil_img_1.width/int(ws/2))
+                start_y1=int(start_y*pil_img_1.height/int(pil_img_1.height*((ws/2)/pil_img_1.width)))
+                end_x1=int(end_x*pil_img_1.width/int(ws/2))
+                end_y1=int(end_y*pil_img_1.height/int(pil_img_1.height*((ws/2)/pil_img_1.width)))
+            if start_x1>end_x1:
+                start_x1,end_x1=end_x1,start_x1
+            if start_y1>end_y1:
+                start_y1,end_y1=end_y1,start_y1
+            crop=pil_img_1.crop((start_x1,start_y1,end_x1,end_y1))
+            crop.save(z)
+            messagebox.showinfo("終了","トリミング完了しました")
+        except:
+            messagebox.showerror("エラー","うまくトリミングできませんでした")
 
     start_x=None
     start_y=None
@@ -2506,37 +2575,76 @@ def img_press():
     frame1.destroy()
     frame = ttk.Frame(root, padding=12)
 
+    def change_ratio():
+        if var.get()==0:
+            label1.configure(text="圧縮率(%)")
+            entry.delete(0, END)
+            entry.insert(END,"50")
+            label2.configure(text="")
+        elif var.get()==1:
+            label1.configure(text="色数(256以下)")
+            entry.delete(0, END)
+            entry.insert(END,"256")
+            label2.configure(text="＊JPG画像では失敗するので注意してください")
+
     def img_press1(drop):
         file=drop.data.replace("{","").replace("}","").replace("\\","/")
         x_list=file_mult(file)
         for x in x_list:
-            img=Image.open(x)
-            name=os.path.basename(x)
-            youso=os.path.splitext(name)[1]
-            img.save("temp.jpg",format="JPEG",quality=int(entry.get()))
-            img_press=Image.open("temp.jpg")
-            name_press=x.replace(name,"press_"+name)
-            youso1=youso.replace(".","")
-            img_press.save(name_press,format=youso1)
-            os.remove("temp.jpg")
-
+            try:
+                if var.get()==0:
+                    img=Image.open(x)
+                    name=os.path.basename(x)
+                    youso=os.path.splitext(name)[1]
+                    make_folder(os.getcwd()+"/temp1/img_compress")
+                    name_press=x.replace(name,"press_"+name)
+                    youso1=youso.replace(".","")
+                    if youso==".jpg" or youso==".jpeg":
+                        img.save(name_press,"jpeg",quality=int(entry.get()),optimize=True)
+                    else:
+                        img.save(os.getcwd()+"/temp1/img_compress/temp.jpg","jpeg",quality=int(entry.get()),optimize=True)
+                        img_press=Image.open(os.getcwd()+"/temp1/img_compress/temp.jpg")
+                        img_press.save(name_press,format=youso1)
+                        os.remove(os.getcwd()+"/temp1/img_compress/temp.jpg")
+                elif var.get()==1:
+                    img=Image.open(x)
+                    name=os.path.basename(x)
+                    youso=os.path.splitext(name)[1]
+                    make_folder(os.getcwd()+"/temp1/img_compress")
+                    img.save(os.getcwd()+"/temp1/img_compress/temp.png")
+                    img_press=Image.open(os.getcwd()+"/temp1/img_compress/temp.png")
+                    img_press=img_press.quantize(int(entry.get()))
+                    name_press=x.replace(name,"press_"+name)
+                    youso1=youso.replace(".","")
+                    img_press.save(name_press,format=youso1)
+                    os.remove(os.getcwd()+"/temp1/img_compress/temp.png")
+            except:
+                messagebox.showerror("エラー",f"{x}\nをうまく圧縮できませんでした")
         messagebox.showinfo("終了","圧縮完了しました")
 
     frame.drop_target_register(DND_FILES)
     frame.dnd_bind('<<Drop>>',img_press1)
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
-    entry=ttk.Entry(frame,width=3)
+    entry=ttk.Entry(frame,width=5)
     label1=ttk.Label(frame,text="%")
     label=ttk.Label(frame,text="ここにファイルを\nドロップしてください",font=("Helvetica", 16))
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
     entry.insert(END,"50")
+    var=IntVar()
+    var.set(0)
+    radio1=ttk.Radiobutton(frame,text="画質圧縮",variable=var,value=0,command=change_ratio)
+    radio2=ttk.Radiobutton(frame,text="色圧縮",variable=var,value=1,command=change_ratio)
+    label2=ttk.Label(frame,text="")
 
     frame.pack()
     buttonX.grid(row=0,column=1)
     buttonY.grid(row=0,column=0)
-    label1.grid(row=1,column=1)
-    entry.grid(row=1,column=0)
-    label.grid(row=2,column=0,columnspan=2)
+    radio1.grid(row=1,column=0)
+    radio2.grid(row=1,column=1)
+    label1.grid(row=2,column=1)
+    entry.grid(row=2,column=0)
+    label.grid(row=3,column=0,columnspan=2)
+    label2.grid(row=4,column=0,columnspan=2)
 
 def mouse_click():
     global frame,buttonY
@@ -2638,12 +2746,15 @@ def video_to_voice():
         file=drop.data.replace("{","").replace("}","").replace("\\","/")
         x_list=file_mult(file)
         for x in x_list:
-            videoclip=VideoFileClip(x)
-            name=os.path.basename(x)
-            youso=os.path.splitext(name)[1]
-            voice=x.replace(youso,".mp3")
-            videoclip.audio.write_audiofile(voice,logger=None)
-            videoclip.close()
+            try:
+                videoclip=VideoFileClip(x)
+                name=os.path.basename(x)
+                youso=os.path.splitext(name)[1]
+                voice=x.replace(youso,".mp3")
+                videoclip.audio.write_audiofile(voice,logger=None)
+                videoclip.close()
+            except:
+                messagebox.showerror("エラー",f"{x}\nをうまく変換できませんでした")
         messagebox.showinfo("終了","完了しました")
 
     frame.drop_target_register(DND_FILES)
@@ -2660,32 +2771,86 @@ def video_to_voice():
 def pdf_split():
     global frame,buttonY
     frame1.destroy()
-    frame = ttk.Frame(root, padding=12)
+    frame = ttk.Frame(root)
+    frame_1=ttk.Frame(frame)
+    frame_2=ttk.Frame(frame)
+
+    def pdf_split2(drop):
+        files=drop.data.replace("{","").replace("}","").replace("\\","/")
+        file_list=file_mult(files)
+        for x in file_list:
+            try:
+                name=os.path.basename(x)
+                y=x.replace(name,"split_"+name)
+                merger = pypdf.PdfMerger()
+                start=int(entry1.get())-1
+                end=int(entry2.get())
+                merger.append(x, pages=(start,end))
+                merger.write(y)
+                merger.close()
+            except:
+                messagebox.showerror("エラー",f"{x}\nをうまく分割できませんでした")
+        messagebox.showinfo("終了","終了しました")
+
+    def change_frame():
+        if var.get()==0:
+            entry1.delete(0, END)
+            entry2.delete(0, END)
+            frame_2.grid_forget()
+            frame_1.grid(row=2,column=0,columnspan=2)
+            label1.pack()
+        elif var.get()==1:
+            frame_1.grid_forget()
+            frame_2.grid(row=2,column=0,columnspan=2)
+            label2.grid(row=0,column=0)
+            entry1.grid(row=0,column=1)
+            label2_1.grid(row=1,column=0)
+            entry2.grid(row=1,column=1)
+            label3.grid(row=2,column=0,columnspan=2)
+            entry1.insert(END,"1")
+            entry2.insert(END,"1")
 
     def pdf_split1(drop):
         file=drop.data.replace("{","").replace("}","").replace("\\","/")
         x_list=file_mult(file)
         for x in x_list:
-            pdf=pypdf.PdfReader(x)
-            name=os.path.basename(x)
-            page=0
-            for i, page in enumerate(pdf.pages):
-                dst_pdf = pypdf.PdfWriter()
-                dst_pdf.add_page(page)
-                output=x.replace(".pdf","")+"_"+str(i+1)+".pdf"
-                dst_pdf.write(output)
-        messagebox.showinfo("終了","完了しました")
+            try:
+                pdf=pypdf.PdfReader(x)
+                name=os.path.basename(x)
+                page=0
+                for i, page in enumerate(pdf.pages):
+                    dst_pdf = pypdf.PdfWriter()
+                    dst_pdf.add_page(page)
+                    output=x.replace(".pdf","")+"_"+str(i+1)+".pdf"
+                    dst_pdf.write(output)
+            except:
+                messagebox.showerror("エラー",f"{x}\nをうまく分割できませんでした")
+        messagebox.showinfo("終了","終了しました")
 
-    frame.drop_target_register(DND_FILES)
-    frame.dnd_bind('<<Drop>>',pdf_split1)
+    frame_1.drop_target_register(DND_FILES)
+    frame_1.dnd_bind('<<Drop>>',pdf_split1)
+    frame_2.drop_target_register(DND_FILES)
+    frame_2.dnd_bind('<<Drop>>',pdf_split2)
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
-    label=ttk.Label(frame,text="ここにファイルを\nドロップしてください",font=("Helvetica", 16))
+    label1=ttk.Label(frame_1,text="ここにファイルを\nドロップしてください",font=("Helvetica", 16))
+    var=IntVar()
+    var.set(0)
+    combo1=ttk.Radiobutton(frame,text="全ページ分解",variable=var,value=0,command=change_frame)
+    combo2=ttk.Radiobutton(frame,text="ページ抽出",variable=var,value=1,command=change_frame)
+    label2=ttk.Label(frame_2,text="開始ページ：")
+    label2_1=ttk.Label(frame_2,text="終了ページ：")
+    entry1=ttk.Entry(frame_2,width=5)
+    entry2=ttk.Entry(frame_2,width=5)
+    label3=ttk.Label(frame_2,text="ここにファイルを\nドロップしてください",font=("Helvetica", 16))
 
     frame.pack()
     buttonY.grid(row=0,column=0)
     buttonX.grid(row=0,column=1)
-    label.grid(row=1,column=0,columnspan=2)
+    combo1.grid(row=1,column=0)
+    combo2.grid(row=1,column=1)
+    frame_1.grid(row=2,column=0,columnspan=2)
+    label1.pack()
 
 def pdf_merge():
     global frame,buttonY
@@ -2697,21 +2862,24 @@ def pdf_merge():
         text.insert(END,"\n"+file)
 
     def pdf_merge2():
-        path=filedialog.asksaveasfilename(
-        title = "名前を付けて保存",
-        filetypes = [("PDF", ".pdf")],
-        defaultextension = "pdf",
-        initialfile="merge.pdf"
-            )
-        s = text.get( 0., END )
-        list=s.split(sep="\n")
-        merger = pypdf.PdfMerger()
-        list1=list[1:-1]
-        for i in list1:
-            merger.append(i)
-        merger.write(path)
-        merger.close()
-        messagebox.showinfo("終了","完了しました")
+        try:
+            path=filedialog.asksaveasfilename(
+            title = "名前を付けて保存",
+            filetypes = [("PDF", ".pdf")],
+            defaultextension = "pdf",
+            initialfile="merge.pdf"
+                )
+            s = text.get( 0., END )
+            list=s.split(sep="\n")
+            merger = pypdf.PdfMerger()
+            list1=list[1:-1]
+            for i in list1:
+                merger.append(i)
+            merger.write(path)
+            merger.close()
+            messagebox.showinfo("終了","完了しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -2738,22 +2906,24 @@ def red_sheet():
         r=int(entry_r.get())
         g=int(entry_g.get())
         b=int(entry_b.get())
-
         return '#{:02x}{:02x}{:02x}'.format(r, g, b)
 
     def red_sheet1():
-        root1 = Toplevel()
-        root1.title('赤シート')
-        root1.attributes("-topmost", True)
-        frame_1 = ttk.Frame(root1, style="Transparent.TFrame", width="400", height="300")
-        root1.wm_attributes("-transparentcolor", "snow")
-        root1.attributes("-alpha", float(entry_grass.get())/100)
-        style = ttk.Style()
-        style.configure("Transparent.TFrame", background=rgb_to_hex())
-        style.configure("Transparent.TFrame", borderwidth=0)
-        style.configure("Transparent.TFrame", highlightthickness=0)
-        style.configure("Transparent.TFrame", relief="flat")
-        frame_1.pack(fill="both", expand=True)
+        try:
+            root1 = Toplevel()
+            root1.title('赤シート')
+            root1.attributes("-topmost", True)
+            frame_1 = ttk.Frame(root1, style="Transparent.TFrame", width="400", height="300")
+            root1.wm_attributes("-transparentcolor", "snow")
+            root1.attributes("-alpha", float(entry_grass.get())/100)
+            style = ttk.Style()
+            style.configure("Transparent.TFrame", background=rgb_to_hex())
+            style.configure("Transparent.TFrame", borderwidth=0)
+            style.configure("Transparent.TFrame", highlightthickness=0)
+            style.configure("Transparent.TFrame", relief="flat")
+            frame_1.pack(fill="both", expand=True)
+        except:
+            messagebox.showerror("エラー","RGBを設定してください")
 
     entry_r=ttk.Entry(frame,width=5)
     entry_g=ttk.Entry(frame,width=5)
@@ -2977,35 +3147,37 @@ def video_to_gif():
     frame1.destroy()
     frame = ttk.Frame(root, padding=12)
 
-    def video_gif():
-        x=entry1.get()
-        name=os.path.basename(x)
-        youso=os.path.splitext(name)[1]
-        y=x.replace(youso,".gif")
-        clip = VideoFileClip(x)
-        clip.write_gif(y, fps=int(entry2.get()),logger=None)
-        clip.close()
-        messagebox.showinfo("完了","変換が完了しました")
+    def video_gif(drop):
+        files=drop.data.replace("{","").replace("}","").replace("\\","/")
+        file_list=file_mult(files)
+        for x in file_list:
+            try:
+                name=os.path.basename(x)
+                youso=os.path.splitext(name)[1]
+                y=x.replace(youso,".gif")
+                clip = VideoFileClip(x)
+                clip.write_gif(y, fps=int(entry1.get()),logger=None)
+                clip.close()
+            except:
+                messagebox.showerror("エラー",f"{x}\nをうまく変換できませんでした")
+        messagebox.showinfo("完了","変換を終了します")
 
 
-    button=ttk.Button(frame,text="変換",command=video_gif)
-    label=ttk.Label(frame,text="FPS")
-    entry1=ttk.Entry(frame,width=20,font=(u'メイリオ',8))
-    label1=ttk.Label(frame,text="フォルダをドロップ：")
-    entry2=ttk.Entry(frame,width=20,font=(u'メイリオ',8))
+    label=ttk.Label(frame,text="FPS：")
+    entry1=ttk.Entry(frame,width=20)
     frame.drop_target_register(DND_FILES)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
-    frame.dnd_bind('<<Drop>>',lambda drop:entry1.insert(END,drop.data.replace("{","").replace("}","").replace("\\","/")))
+    frame.dnd_bind('<<Drop>>',video_gif)
+    entry1.insert(END,"15")
+    label1=ttk.Label(frame,text="ここにファイルを\nドロップしてください",font=("Helvetica", 16))
 
     frame.pack()
     buttonX.grid(row=0,column=1)
     buttonY.grid(row=0,column=0)
     label.grid(row=1,column=0)
-    entry2.grid(row=1,column=1)
-    label1.grid(row=2,column=0)
-    entry1.grid(row=2,column=1)
-    button.grid(row=3,column=0,columnspan=2)
+    entry1.grid(row=1,column=1)
+    label1.grid(row=2,column=0,columnspan=2)
 
 def svg_con():
     global frame,buttonY
@@ -3016,19 +3188,22 @@ def svg_con():
         x = drop.data.replace("{","").replace("}","").replace("\\","/")
         input_list=file_mult(x)
         for input_file in input_list:
-            im = Image.open(input_file)
-            w, h = im.size
-            output_file = input_file.split(".")[0] + '.svg'
+            try:
+                im = Image.open(input_file)
+                w, h = im.size
+                output_file = input_file.split(".")[0] + '.svg'
 
-            with open(input_file, "rb") as f:
-                img = base64.b64encode(f.read())
-            dwg = svgwrite.Drawing(output_file)
-            dwg.add(dwg.image('data:image/jpg;base64,' + img.decode("ascii"),
-                            size=(w, h)
-                            )
-                    )
-            dwg.save()
-        messagebox.showinfo("完了","変換が完了しました")
+                with open(input_file, "rb") as f:
+                    img = base64.b64encode(f.read())
+                dwg = svgwrite.Drawing(output_file)
+                dwg.add(dwg.image('data:image/jpg;base64,' + img.decode("ascii"),
+                                size=(w, h)
+                                )
+                        )
+                dwg.save()
+            except:
+                messagebox.showerror("エラー",f"{input_file}\nをうまく変換できませんでした")
+        messagebox.showinfo("完了","変換が終了しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
@@ -3050,25 +3225,28 @@ def img_inv():
         file = drop.data.replace("{","").replace("}","").replace("\\","/")
         x_list=file_mult(file)
         for x in x_list:
-            name=os.path.basename(x)
-            youso=os.path.splitext(name)[1]
-            y=x.replace(name,"inv_"+name)
-            z=y.replace(youso,".png")
-            img = cv2.imdecode(
-                np.fromfile(x, dtype=np.uint8),
-                cv2.IMREAD_UNCHANGED
-                )
-            if img.shape[2] == 4:
-                # アルファチャンネルを含む
-                pass
-            elif img.shape[2] == 3:
-                # アルファチャンネル追加
-                alpha = np.ones((img.shape[0], img.shape[1], 1), dtype=np.uint8) * 255
-                img = np.concatenate((img, alpha), axis=2)
+            try:
+                name=os.path.basename(x)
+                youso=os.path.splitext(name)[1]
+                y=x.replace(name,"inv_"+name)
+                z=y.replace(youso,".png")
+                img = cv2.imdecode(
+                    np.fromfile(x, dtype=np.uint8),
+                    cv2.IMREAD_UNCHANGED
+                    )
+                if img.shape[2] == 4:
+                    # アルファチャンネルを含む
+                    pass
+                elif img.shape[2] == 3:
+                    # アルファチャンネル追加
+                    alpha = np.ones((img.shape[0], img.shape[1], 1), dtype=np.uint8) * 255
+                    img = np.concatenate((img, alpha), axis=2)
 
-            img[:, :, 3] = np.where(np.all(img == 255, axis=-1), 0, 255)  # 白でAlphaを0
-            _, buf = cv2.imencode(youso, img)
-            buf.tofile(z)
+                img[:, :, 3] = np.where(np.all(img == 255, axis=-1), 0, 255)  # 白でAlphaを0
+                _, buf = cv2.imencode(youso, img)
+                buf.tofile(z)
+            except:
+                messagebox.showerror("エラー",f"{x}\nを失敗しました")
         messagebox.showinfo("完了","変換が完了しました")
 
     frame.drop_target_register(DND_FILES)
@@ -3329,9 +3507,12 @@ def icon_image():
     frame = ttk.Frame(root, padding=12)
 
     def exe_drop(drop):
-        y=drop.data.replace("{","").replace("}","").replace("\\","/")
-        extract_icon_from_exe(y)
-        messagebox.showinfo('完了', 'アイコンを抽出しました')
+        try:
+            y=drop.data.replace("{","").replace("}","").replace("\\","/")
+            extract_icon_from_exe(y)
+            messagebox.showinfo('完了', 'アイコンを抽出しました')
+        except:
+            messagebox.showerror('エラー', 'アイコンを抽出できませんでした')
 
     def extract_icon_from_exe(exe_path, icon_index=0):
         # アイコンの大きさ
@@ -3428,12 +3609,15 @@ def txt_get():
     frame = ttk.Frame(root, padding=12)
 
     def txt_get1(drop):
-        x=drop.data.replace("{","").replace("}","").replace("\\","/")
-        f = open(x, 'r')
-        data = f.read()
-        clip.copy(data)
-        f.close()
-        messagebox.showinfo('完了', 'クリップボードにコピーしました')
+        try:
+            x=drop.data.replace("{","").replace("}","").replace("\\","/")
+            f = open(x, 'r')
+            data = f.read()
+            clip.copy(data)
+            f.close()
+            messagebox.showinfo('完了', 'クリップボードにコピーしました')
+        except:
+            messagebox.showerror('エラー', 'テキスト取得を失敗しました')
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
@@ -3455,15 +3639,18 @@ def voice_cut():
         file=drop.data.replace("{","").replace("}","").replace("\\","/")
         x_list=file_mult(file)
         for x in x_list:
-            y= os.path.basename(x)
-            z=x.replace(y,"cut_"+y)
-            start=60*int(entry_start1.get())+float(entry_start2.get())
-            end=60*int(entry_end1.get())+float(entry_end2.get())
-            audio1 = AudioFileClip(x)
-            audio=audio1.subclip(start, end)
-            audio.write_audiofile(z,logger=None)
-            audio1.close()
-        messagebox.showinfo("終了","カットが完了しました")
+            try:
+                y= os.path.basename(x)
+                z=x.replace(y,"cut_"+y)
+                start=60*int(entry_start1.get())+float(entry_start2.get())
+                end=60*int(entry_end1.get())+float(entry_end2.get())
+                audio1 = AudioFileClip(x)
+                audio=audio1.subclip(start, end)
+                audio.write_audiofile(z,logger=None)
+                audio1.close()
+            except:
+                messagebox.showerror("エラー",f"{x}\nをうまく変換できませんでした")
+        messagebox.showinfo("終了","カットを終了します")
 
     frame.drop_target_register(DND_FILES)
     frame.dnd_bind('<<Drop>>',clip)
@@ -3669,26 +3856,29 @@ def num_change():
         entry2.delete(0, END)
         entry8.delete(0, END)
         entry16.delete(0, END)
-        if var.get()==10:
-            entry10.insert(0,entry_input.get())
-            entry2.insert(0,str(bin(int(entry_input.get()))).replace("0b",""))
-            entry8.insert(0,str(oct(int(entry_input.get()))).replace("0o",""))
-            entry16.insert(0,str(hex(int(entry_input.get()))).replace("0x",""))
-        elif var.get()==2:
-            entry10.insert(0,str(int(entry_input.get(),2)))
-            entry2.insert(0,entry_input.get())
-            entry8.insert(0,str(oct(int(entry_input.get(),2))).replace("0o",""))
-            entry16.insert(0,str(hex(int(entry_input.get(),2))).replace("0x",""))
-        elif var.get()==8:
-            entry10.insert(0,str(int(entry_input.get(),8)))
-            entry2.insert(0,str(bin(int(entry_input.get(),8))).replace("0b",""))
-            entry8.insert(0,entry_input.get())
-            entry16.insert(0,str(hex(int(entry_input.get(),8))).replace("0x",""))
-        elif var.get()==16:
-            entry10.insert(0,str(int(entry_input.get(),16)))
-            entry2.insert(0,str(bin(int(entry_input.get(),16))).replace("0b",""))
-            entry8.insert(0,str(oct(int(entry_input.get(),16))).replace("0o",""))
-            entry16.insert(0,entry_input.get())
+        try:
+            if var.get()==10:
+                entry10.insert(0,entry_input.get())
+                entry2.insert(0,str(bin(int(entry_input.get()))).replace("0b",""))
+                entry8.insert(0,str(oct(int(entry_input.get()))).replace("0o",""))
+                entry16.insert(0,str(hex(int(entry_input.get()))).replace("0x",""))
+            elif var.get()==2:
+                entry10.insert(0,str(int(entry_input.get(),2)))
+                entry2.insert(0,entry_input.get())
+                entry8.insert(0,str(oct(int(entry_input.get(),2))).replace("0o",""))
+                entry16.insert(0,str(hex(int(entry_input.get(),2))).replace("0x",""))
+            elif var.get()==8:
+                entry10.insert(0,str(int(entry_input.get(),8)))
+                entry2.insert(0,str(bin(int(entry_input.get(),8))).replace("0b",""))
+                entry8.insert(0,entry_input.get())
+                entry16.insert(0,str(hex(int(entry_input.get(),8))).replace("0x",""))
+            elif var.get()==16:
+                entry10.insert(0,str(int(entry_input.get(),16)))
+                entry2.insert(0,str(bin(int(entry_input.get(),16))).replace("0b",""))
+                entry8.insert(0,str(oct(int(entry_input.get(),16))).replace("0o",""))
+                entry16.insert(0,entry_input.get())
+        except:
+            messagebox.showerror('エラー', '変換できませんでした')
 
     var=IntVar()
     radio10=ttk.Radiobutton(frame,text="10進数",value=10,variable=var)
@@ -4210,14 +4400,17 @@ def mp3_wav():
         file=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(file)
         for x in file_list:
-            clip=AudioFileClip(x)
-            name=os.path.basename(x)
-            youso=os.path.splitext(name)[1]
-            if youso==".mp3":
-                clip.write_audiofile(x.replace(youso,".wav"),logger=None)
-            elif youso==".wav":
-                clip.write_audiofile(x.replace(youso,".mp3"),logger=None)
-        messagebox.showinfo('完了', '変換しました')
+            try:
+                clip=AudioFileClip(x)
+                name=os.path.basename(x)
+                youso=os.path.splitext(name)[1]
+                if youso==".mp3":
+                    clip.write_audiofile(x.replace(youso,".wav"),logger=None)
+                elif youso==".wav":
+                    clip.write_audiofile(x.replace(youso,".mp3"),logger=None)
+            except:
+                messagebox.showerror('エラー', f'{x}\nは変換できませんでした')
+        messagebox.showinfo('完了', '終了しました')
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
@@ -4281,18 +4474,21 @@ def gif_create():
             box.insert("end",x)
 
     def gif_create1():
-        f_path=filedialog.asksaveasfilename(
-            title = "名前を付けて保存",
-            filetypes = [("gif",".gif") ],
-            defaultextension = "gif"
-            )
-        file_list=box.get("1.0","end-1c").split("\n")
-        x_list=[]
-        for path in file_list:
-            if path!="":
-                x_list.append(Image.open(path))
-        x_list[0].save(f_path, save_all=True, append_images=x_list[1:], duration=1000/int(entry.get()), loop=0,optimize=False)
-        messagebox.showinfo('完了', '作成しました')
+        try:
+            f_path=filedialog.asksaveasfilename(
+                title = "名前を付けて保存",
+                filetypes = [("gif",".gif") ],
+                defaultextension = "gif"
+                )
+            file_list=box.get("1.0","end-1c").split("\n")
+            x_list=[]
+            for path in file_list:
+                if path!="":
+                    x_list.append(Image.open(path))
+            x_list[0].save(f_path, save_all=True, append_images=x_list[1:], duration=1000/int(entry.get()), loop=0,optimize=False)
+            messagebox.showinfo('完了', '作成しました')
+        except:
+            messagebox.showerror('エラー', '作成できませんでした')
 
     box=ScrolledText(frame,width=30,height=20,wrap=NONE)
     label1=ttk.Label(frame,text="ここに画像ファイルを\nドロップしてください",font=("Helvetica", 16))
@@ -4319,25 +4515,28 @@ def img_blank():
     frame = ttk.Frame(root, padding=4)
 
     def add_margin(drop):
-        if var.get()==1:
-            color=(255,255,255)
-        elif var.get()==2:
-            color=(0,0,0)
-        width=int(entry_w.get())
-        height=int(entry_h.get())
-        files=drop.data.replace("{","").replace("}","").replace("\\","/")
-        file_list=file_mult(files)
-        for x in file_list:
-            name=os.path.basename(x)
-            pil_img=Image.open(x)
-            old_w, old_h = pil_img.size
-            if old_w<=width and old_h<=height:
-                result = Image.new(pil_img.mode, (width, height),color)
-                result.paste(pil_img, (int((width-old_w)/2), int((height-old_h)/2)))
-                result.save(os.path.dirname(x)+"/"+"blank_"+name)
-            else:
-                messagebox.showerror('エラー', '画像サイズが大きすぎます')
-        messagebox.showinfo('完了', '作成しました')
+        try:
+            if var.get()==1:
+                color=(255,255,255)
+            elif var.get()==2:
+                color=(0,0,0)
+            width=int(entry_w.get())
+            height=int(entry_h.get())
+            files=drop.data.replace("{","").replace("}","").replace("\\","/")
+            file_list=file_mult(files)
+            for x in file_list:
+                name=os.path.basename(x)
+                pil_img=Image.open(x)
+                old_w, old_h = pil_img.size
+                if old_w<=width and old_h<=height:
+                    result = Image.new(pil_img.mode, (width, height),color)
+                    result.paste(pil_img, (int((width-old_w)/2), int((height-old_h)/2)))
+                    result.save(os.path.dirname(x)+"/"+"blank_"+name)
+                else:
+                    messagebox.showerror('エラー', '画像サイズが大きすぎます')
+        except:
+            messagebox.showerror('エラー', '作成できませんでした')
+        messagebox.showinfo('完了', '終了しました')
 
     label_w=ttk.Label(frame,text="横幅(px)：")
     label_h=ttk.Label(frame,text="縦幅(px)：")
@@ -4373,18 +4572,21 @@ def image_set():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            img=Image.open(x)
-            name=os.path.basename(x)
-            con = ImageEnhance.Brightness(img)
-            result1 = con.enhance(float(entry_con.get()))
-            kido = ImageEnhance.Brightness(result1)
-            result2 = kido.enhance(float(entry_kido.get()))
-            sat=ImageEnhance.Color(result2)
-            result3=sat.enhance(float(entry_sat.get()))
-            shr=ImageEnhance.Sharpness(result3)
-            result4=shr.enhance(float(entry_shr.get()))
-            result4.save(os.path.dirname(x)+"/"+"set_"+name)
-        messagebox.showinfo('完了', '作成しました')
+            try:
+                img=Image.open(x)
+                name=os.path.basename(x)
+                con = ImageEnhance.Brightness(img)
+                result1 = con.enhance(float(entry_con.get()))
+                kido = ImageEnhance.Brightness(result1)
+                result2 = kido.enhance(float(entry_kido.get()))
+                sat=ImageEnhance.Color(result2)
+                result3=sat.enhance(float(entry_sat.get()))
+                shr=ImageEnhance.Sharpness(result3)
+                result4=shr.enhance(float(entry_shr.get()))
+                result4.save(os.path.dirname(x)+"/"+"set_"+name)
+            except:
+                messagebox.showerror('エラー', f'{x}\nは作成できませんでした')
+        messagebox.showinfo('完了', '終了しました')
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
@@ -4438,14 +4640,17 @@ def img_gamma():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            img=Image.open(x)
-            name=os.path.basename(x)
-            if has_alpha_channel(img):
-                result=img.point(gamma_table_alpha(float(entry_gamma.get())))
-            else:
-                result=img.point(gamma_table(float(entry_gamma.get())))
-            result.save(os.path.dirname(x)+"/"+"gamma_"+name)
-        messagebox.showinfo('完了', '作成しました')
+            try:
+                img=Image.open(x)
+                name=os.path.basename(x)
+                if has_alpha_channel(img):
+                    result=img.point(gamma_table_alpha(float(entry_gamma.get())))
+                else:
+                    result=img.point(gamma_table(float(entry_gamma.get())))
+                result.save(os.path.dirname(x)+"/"+"gamma_"+name)
+            except:
+                messagebox.showerror('エラー', f'{x}\nは作成できませんでした')
+        messagebox.showinfo('完了', '終了しました')
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
@@ -4474,23 +4679,26 @@ def area_mozaic():
     canvas_img=None
     def img_top(drop):
         nonlocal canvas_img,pil_img,z,origin,pil_img_1,x
-        x=drop.data.replace("{","").replace("}","").replace("\\","/")
-        y= os.path.basename(x)
-        z=x.replace(y,"mosaic_"+y)
-        pil_img=pil_img_1=Image.open(x)
-        if pil_img.width>pil_img.height:
-            origin=0
-            pil_img=pil_img.resize((int(ws/2),int(pil_img.height*((ws/2)/pil_img.width))),Image.LANCZOS)
-        elif pil_img.width<pil_img.height:
-            origin=1
-            pil_img=pil_img.resize((int(pil_img.width*((hs/2)/pil_img.height)),int(hs/2)),Image.LANCZOS)
-        elif pil_img.width==pil_img.height:
-            origin=2
-            pil_img=pil_img.resize((int(hs/2),int(hs/2)),Image.LANCZOS)
-        canvas.delete("all")
-        canvas_img= ImageTk.PhotoImage(pil_img)
-        canvas.create_image(pil_img.width/2,pil_img.height/2,image=canvas_img)
-        canvas.config(width=pil_img.width, height=pil_img.height)
+        try:
+            x=drop.data.replace("{","").replace("}","").replace("\\","/")
+            y= os.path.basename(x)
+            z=x.replace(y,"mosaic_"+y)
+            pil_img=pil_img_1=Image.open(x)
+            if pil_img.width>pil_img.height:
+                origin=0
+                pil_img=pil_img.resize((int(ws/2),int(pil_img.height*((ws/2)/pil_img.width))),Image.LANCZOS)
+            elif pil_img.width<pil_img.height:
+                origin=1
+                pil_img=pil_img.resize((int(pil_img.width*((hs/2)/pil_img.height)),int(hs/2)),Image.LANCZOS)
+            elif pil_img.width==pil_img.height:
+                origin=2
+                pil_img=pil_img.resize((int(hs/2),int(hs/2)),Image.LANCZOS)
+            canvas.delete("all")
+            canvas_img= ImageTk.PhotoImage(pil_img)
+            canvas.create_image(pil_img.width/2,pil_img.height/2,image=canvas_img)
+            canvas.config(width=pil_img.width, height=pil_img.height)
+        except:
+            messagebox.showerror('エラー', '失敗しました')
 
     def on_press(event):
         canvas.delete("rect")
@@ -4513,39 +4721,42 @@ def area_mozaic():
 
     def mozaic():
         nonlocal origin
-        if origin==2:
-            start_x1=int(start_x*pil_img_1.height/int(hs/2))
-            start_y1=int(start_y*pil_img_1.height/int(hs/2))
-            end_x1=int(end_x*pil_img_1.height/int(hs/2))
-            end_y1=int(end_y*pil_img_1.height/int(hs/2))
-        elif origin==1:
-            start_x1=int(start_x*pil_img_1.width/int(pil_img_1.width*((hs/2)/pil_img_1.height)))
-            start_y1=int(start_y*pil_img_1.height/int(hs/2))
-            end_x1=int(end_x*pil_img_1.width/int(pil_img_1.width*((hs/2)/pil_img_1.height)))
-            end_y1=int(end_y*pil_img_1.height/int(hs/2))
-        elif origin==0:
-            start_x1=int(start_x*pil_img_1.width/int(ws/2))
-            start_y1=int(start_y*pil_img_1.height/int(pil_img_1.height*((ws/2)/pil_img_1.width)))
-            end_x1=int(end_x*pil_img_1.width/int(ws/2))
-            end_y1=int(end_y*pil_img_1.height/int(pil_img_1.height*((ws/2)/pil_img_1.width)))
-        if start_x1>end_x1:
-            start_x1,end_x1=end_x1,start_x1
-        if start_y1>end_y1:
-            start_y1,end_y1=end_y1,start_y1
-        crop=pil_img_1.crop((start_x1,start_y1,end_x1,end_y1))
-        small_size = (
-            round(crop.width / var.get()),
-            round(crop.height / var.get())
-        )
-        small_image = crop.resize(small_size)
-        reverse_image = small_image.resize(
-            (crop.width, crop.height),
-            Image.NEAREST
+        try:
+            if origin==2:
+                start_x1=int(start_x*pil_img_1.height/int(hs/2))
+                start_y1=int(start_y*pil_img_1.height/int(hs/2))
+                end_x1=int(end_x*pil_img_1.height/int(hs/2))
+                end_y1=int(end_y*pil_img_1.height/int(hs/2))
+            elif origin==1:
+                start_x1=int(start_x*pil_img_1.width/int(pil_img_1.width*((hs/2)/pil_img_1.height)))
+                start_y1=int(start_y*pil_img_1.height/int(hs/2))
+                end_x1=int(end_x*pil_img_1.width/int(pil_img_1.width*((hs/2)/pil_img_1.height)))
+                end_y1=int(end_y*pil_img_1.height/int(hs/2))
+            elif origin==0:
+                start_x1=int(start_x*pil_img_1.width/int(ws/2))
+                start_y1=int(start_y*pil_img_1.height/int(pil_img_1.height*((ws/2)/pil_img_1.width)))
+                end_x1=int(end_x*pil_img_1.width/int(ws/2))
+                end_y1=int(end_y*pil_img_1.height/int(pil_img_1.height*((ws/2)/pil_img_1.width)))
+            if start_x1>end_x1:
+                start_x1,end_x1=end_x1,start_x1
+            if start_y1>end_y1:
+                start_y1,end_y1=end_y1,start_y1
+            crop=pil_img_1.crop((start_x1,start_y1,end_x1,end_y1))
+            small_size = (
+                round(crop.width / var.get()),
+                round(crop.height / var.get())
             )
-        fin_img=Image.open(x)
-        fin_img.paste(reverse_image, (start_x1, start_y1))
-        fin_img.save(z)
-        messagebox.showinfo("終了","モザイク完了しました")
+            small_image = crop.resize(small_size)
+            reverse_image = small_image.resize(
+                (crop.width, crop.height),
+                Image.NEAREST
+                )
+            fin_img=Image.open(x)
+            fin_img.paste(reverse_image, (start_x1, start_y1))
+            fin_img.save(z)
+            messagebox.showinfo("終了","モザイク完了しました")
+        except:
+            messagebox.showerror('エラー', '失敗しました')
 
     start_x=None
     start_y=None
@@ -4619,29 +4830,32 @@ def translate():
                 radio8.config(state="disabled")
 
     def trans():
-        x=clip.paste()
-        if var1.get()==1:
-            if df1.get()==1:
-                x=jaconv.hira2kata(x)
-            else:
-                x=jaconv.kata2hira(x)
-        if var2.get()==1:
-            if df2.get()==2:
-                x=x.upper()
-            else:
-                x=x.lower()
-        if var3.get()==1:
-            if df3.get()==2:
-                x=jaconv.z2h(x,kana=True,digit=True,ascii=True)
-            else:
-                x=jaconv.h2z(x,kana=True,digit=True,ascii=True)
-        if var4.get()==1:
-            if df4.get()==2:
-                x=jaconv.kana2alphabet(x)
-            else:
-                x=jaconv.alphabet2kana(x)
-        clip.copy(x)
-        messagebox.showinfo("終了","変換完了しました")
+        try:
+            x=clip.paste()
+            if var1.get()==1:
+                if df1.get()==1:
+                    x=jaconv.hira2kata(x)
+                else:
+                    x=jaconv.kata2hira(x)
+            if var2.get()==1:
+                if df2.get()==2:
+                    x=x.upper()
+                else:
+                    x=x.lower()
+            if var3.get()==1:
+                if df3.get()==2:
+                    x=jaconv.z2h(x,kana=True,digit=True,ascii=True)
+                else:
+                    x=jaconv.h2z(x,kana=True,digit=True,ascii=True)
+            if var4.get()==1:
+                if df4.get()==2:
+                    x=jaconv.kana2alphabet(x)
+                else:
+                    x=jaconv.alphabet2kana(x)
+            clip.copy(x)
+            messagebox.showinfo("終了","変換完了しました")
+        except:
+            messagebox.showerror('エラー', '失敗しました')
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
@@ -4693,23 +4907,26 @@ def video_volume():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            if os.path.exists(x)==False:
-                messagebox.showerror("エラー","ファイルが存在しません")
-            else:
-                if var.get()==0:
-                    clip = VideoFileClip(x)
-                    name=os.path.basename(x)
-                    newaudioclip = clip.audio.volumex(float(entry1.get()))
-                    newclip = clip.set_audio(newaudioclip)
-                    z=x.replace(name,"volume_"+name)
-                    newclip.write_videofile(z,logger=None)
+            try:
+                if os.path.exists(x)==False:
+                    messagebox.showerror("エラー","ファイルが存在しません")
                 else:
-                    audio = AudioFileClip(x)
-                    name=os.path.basename(x)
-                    z=x.replace(name,"volume_"+name)
-                    new_audio = audio.volumex(float(entry1.get()))
-                    new_audio.write_audiofile(z,logger=None)
-        messagebox.showinfo("終了","変換完了しました")
+                    if var.get()==0:
+                        clip = VideoFileClip(x)
+                        name=os.path.basename(x)
+                        newaudioclip = clip.audio.volumex(float(entry1.get()))
+                        newclip = clip.set_audio(newaudioclip)
+                        z=x.replace(name,"volume_"+name)
+                        newclip.write_videofile(z,logger=None)
+                    else:
+                        audio = AudioFileClip(x)
+                        name=os.path.basename(x)
+                        z=x.replace(name,"volume_"+name)
+                        new_audio = audio.volumex(float(entry1.get()))
+                        new_audio.write_audiofile(z,logger=None)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
+        messagebox.showinfo("終了","終了しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
@@ -4738,27 +4955,29 @@ def video_speed():
     frame1.destroy()
     frame = ttk.Frame(root, padding=12)
 
-
     def video_top(drop):
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            if os.path.exists(x)==False:
-                messagebox.showerror("エラー","ファイルが存在しません")
-            else:
-                if var.get()==0:
-                    clip_orig = VideoFileClip(x)
-                    name=os.path.basename(x)
-                    clip = speedx(clip_orig, factor=float(entry1.get()))
-                    z=x.replace(name,"speed_"+name)
-                    clip.write_videofile(z,logger=None)
+            try:
+                if os.path.exists(x)==False:
+                    messagebox.showerror("エラー","ファイルが存在しません")
                 else:
-                    name=os.path.basename(x)
-                    z=x.replace(name,"speed_"+name)
-                    audio = AudioFileClip(x)
-                    new_audio = audio.fx(speedx, factor=float(entry1.get()))
-                    new_audio.write_audiofile(z,logger=None)
-        messagebox.showinfo("終了","変換完了しました")
+                    if var.get()==0:
+                        clip_orig = VideoFileClip(x)
+                        name=os.path.basename(x)
+                        clip = speedx(clip_orig, factor=float(entry1.get()))
+                        z=x.replace(name,"speed_"+name)
+                        clip.write_videofile(z,logger=None)
+                    else:
+                        name=os.path.basename(x)
+                        z=x.replace(name,"speed_"+name)
+                        audio = AudioFileClip(x)
+                        new_audio = audio.fx(speedx, factor=float(entry1.get()))
+                        new_audio.write_audiofile(z,logger=None)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
+        messagebox.showinfo("終了","終了しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
@@ -4791,12 +5010,15 @@ def video_shot():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            clip = VideoFileClip(x)
-            name=os.path.basename(x)
-            youso=os.path.splitext(name)[1]
-            z=x.replace(youso,".png")
-            clip.save_frame(filename=z, t=int(entry1.get())*60+int(entry2.get()))
-        messagebox.showinfo("終了","抽出完了しました")
+            try:
+                clip = VideoFileClip(x)
+                name=os.path.basename(x)
+                youso=os.path.splitext(name)[1]
+                z=x.replace(youso,".png")
+                clip.save_frame(filename=z, t=int(entry1.get())*60+int(entry2.get()))
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
+        messagebox.showinfo("終了","終了しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
@@ -4823,11 +5045,14 @@ def video_info():
     frame = ttk.Frame(root, padding=12)
 
     def video_info_top(drop):
-        x=drop.data.replace("{","").replace("}","").replace("\\","/")
-        clip = VideoFileClip(x)
-        info=f"解像度：{clip.size}\nFPS：{clip.fps}\n長さ：{int(clip.duration//60)}分{int(clip.duration%60)}秒"
-        messagebox.showinfo("情報",info)
-        clip.close()
+        try:
+            x=drop.data.replace("{","").replace("}","").replace("\\","/")
+            clip = VideoFileClip(x)
+            info=f"解像度：{clip.size}\nFPS：{clip.fps}\n長さ：{int(clip.duration//60)}分{int(clip.duration%60)}秒"
+            messagebox.showinfo("情報",info)
+            clip.close()
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     label=ttk.Label(frame,text="ここに動画ファイルを\nドロップしてください",font=("Helvetica", 16))
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -4845,20 +5070,21 @@ def md2html():
     frame1.destroy()
     frame = ttk.Frame(root, padding=12)
     def md2html_top(drop):
+        def convert_markdown_to_html(markdown_file, html_file):
+            with open(markdown_file, 'r', encoding='utf-8') as file:
+                markdown_text = file.read()
+                html = mistune.markdown(markdown_text)
+            with open(html_file, 'w', encoding='utf-8') as file:
+                file.write(html)
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            def convert_markdown_to_html(markdown_file, html_file):
-                with open(markdown_file, 'r', encoding='utf-8') as file:
-                    markdown_text = file.read()
-                    html = mistune.markdown(markdown_text)
-
-                with open(html_file, 'w', encoding='utf-8') as file:
-                    file.write(html)
-
-            z=x.replace(".md",".html")
-            convert_markdown_to_html(x, z)
-        messagebox.showinfo("終了","変換完了しました")
+            try:
+                z=x.replace(".md",".html")
+                convert_markdown_to_html(x, z)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
+        messagebox.showinfo("終了","終了しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
@@ -4877,16 +5103,19 @@ def video_concat():
     frame = ttk.Frame(root, padding=12)
 
     def video_concat_top():
-        output=filedialog.asksaveasfilename(
-            title = "名前を付けて保存",
-            filetypes = [("MP4", ".mp4")],
-            defaultextension = "mp4"
-            )
-        clip1 = VideoFileClip(entry1.get())
-        clip2 = VideoFileClip(entry2.get())
-        clip = concatenate_videoclips([clip1, clip2])
-        clip.write_videofile(output,logger=None)
-        messagebox.showinfo("終了","結合完了しました")
+        try:
+            output=filedialog.asksaveasfilename(
+                title = "名前を付けて保存",
+                filetypes = [("MP4", ".mp4")],
+                defaultextension = "mp4"
+                )
+            clip1 = VideoFileClip(entry1.get())
+            clip2 = VideoFileClip(entry2.get())
+            clip = concatenate_videoclips([clip1, clip2])
+            clip.write_videofile(output,logger=None)
+            messagebox.showinfo("終了","結合完了しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     def drag_video1(drop):
         x=drop.data.replace("{","").replace("}","").replace("\\","/")
@@ -4953,11 +5182,14 @@ def voice2video():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            name=os.path.basename(x)
-            youso=os.path.splitext(name)[1]
-            z=x.replace(youso,".mp4")
-            create_movie_with_sound(entry1.get(),x,z)
-        messagebox.showinfo("終了","変換完了しました")
+            try:
+                name=os.path.basename(x)
+                youso=os.path.splitext(name)[1]
+                z=x.replace(youso,".mp4")
+                create_movie_with_sound(entry1.get(),x,z)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
+        messagebox.showinfo("終了","終了しました")
 
 
     label1=ttk.Label(frame,text="音声ファイルをここに\nドロップしてください",font=("Helvetica", 16))
@@ -4984,21 +5216,24 @@ def compress():
     frame = ttk.Frame(root, padding=12)
 
     def text_top(drop):
-        x=drop.data.replace("{","").replace("}","").replace("\\","/")
-        if os.path.isfile(x):
-            messagebox.showinfo("終了","ファイルが設定されています。フォルダを設定してください")
-        else:
-            def zip_folder(folder_path, zip_name):
-                with zipfile.ZipFile(zip_name, 'w',compression=zipfile.ZIP_DEFLATED,compresslevel=var.get()) as zipf:
-                    for root, _, files in os.walk(folder_path):
-                        for file in files:
-                            file_path = os.path.join(root, file)
-                            zipf.write(file_path, os.path.relpath(file_path, folder_path))
+        try:
+            x=drop.data.replace("{","").replace("}","").replace("\\","/")
+            if os.path.isfile(x):
+                messagebox.showinfo("終了","ファイルが設定されています。フォルダを設定してください")
+            else:
+                def zip_folder(folder_path, zip_name):
+                    with zipfile.ZipFile(zip_name, 'w',compression=zipfile.ZIP_DEFLATED,compresslevel=var.get()) as zipf:
+                        for root, _, files in os.walk(folder_path):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                zipf.write(file_path, os.path.relpath(file_path, folder_path))
 
-            zip_name=x+".zip"
-            folder_path = x
-            zip_folder(folder_path, zip_name)
-            messagebox.showinfo("終了","圧縮完了しました")
+                zip_name=x+".zip"
+                folder_path = x
+                zip_folder(folder_path, zip_name)
+                messagebox.showinfo("終了","圧縮完了しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -5034,25 +5269,28 @@ def decompress():
         file_list=file_mult(files)
         pw=entry.get()
         for f in file_list:
-            output=f.replace(".zip","")
-            with open(f, 'rb') as file:
-                # ヘッダ情報
-                header = file.read(30)
-                # フラグ取得
-                general_flags = int.from_bytes(header[6:8], byteorder='little')
+            try:
+                output=f.replace(".zip","")
+                with open(f, 'rb') as file:
+                    # ヘッダ情報
+                    header = file.read(30)
+                    # フラグ取得
+                    general_flags = int.from_bytes(header[6:8], byteorder='little')
 
-            # UTF-8フラグ検知
-            if general_flags & 0x0800:
-                with zipfile.ZipFile(f) as zf:
-                    zf.extractall(path=output,pwd=pw.encode('utf-8'))
-            else:
-                with zipfile.ZipFile(f) as z:
-                    for info in z.infolist():
-                        info.filename = info.orig_filename.encode('cp437').decode('cp932')
-                        if os.sep != "/" and os.sep in info.filename:
-                            info.filename = info.filename.replace(os.sep, "/")
-                        z.extract(info,path=output,pwd=pw.encode('utf-8'))
-        messagebox.showinfo("終了","解凍完了しました")
+                # UTF-8フラグ検知
+                if general_flags & 0x0800:
+                    with zipfile.ZipFile(f) as zf:
+                        zf.extractall(path=output,pwd=pw.encode('utf-8'))
+                else:
+                    with zipfile.ZipFile(f) as z:
+                        for info in z.infolist():
+                            info.filename = info.orig_filename.encode('cp437').decode('cp932')
+                            if os.sep != "/" and os.sep in info.filename:
+                                info.filename = info.filename.replace(os.sep, "/")
+                            z.extract(info,path=output,pwd=pw.encode('utf-8'))
+            except:
+                messagebox.showerror("エラー","失敗しました")
+        messagebox.showinfo("終了","終了しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
@@ -5075,25 +5313,28 @@ def image_info():
     frame = ttk.Frame(root, padding=12)
 
     def top(drop):
-        x=drop.data.replace("{","").replace("}","").replace("\\","/")
-        img=Image.open(x)
-        name=os.path.basename(x)
-        size=img.size
-        format1=img.format
-        format2=img.format_description
-        root1=Toplevel()
-        root1.attributes("-topmost", True)
-        root1.title("情報")
-        frame1=ttk.Frame(root1)
-        labelX1=ttk.Label(frame1,text="サイズ："+str(size))
-        labelX2=ttk.Label(frame1,text="フォーマット："+format1)
-        labelX3=ttk.Label(frame1,text="フォーマット詳細："+format2)
-        labelX4=ttk.Label(frame1,text="ファイル名："+name)
-        frame1.pack()
-        labelX4.pack(side=TOP)
-        labelX1.pack(side=TOP)
-        labelX2.pack(side=TOP)
-        labelX3.pack(side=TOP)
+        try:
+            x=drop.data.replace("{","").replace("}","").replace("\\","/")
+            img=Image.open(x)
+            name=os.path.basename(x)
+            size=img.size
+            format1=img.format
+            format2=img.format_description
+            root1=Toplevel()
+            root1.attributes("-topmost", True)
+            root1.title("情報")
+            frame1=ttk.Frame(root1)
+            labelX1=ttk.Label(frame1,text="サイズ："+str(size))
+            labelX2=ttk.Label(frame1,text="フォーマット："+format1)
+            labelX3=ttk.Label(frame1,text="フォーマット詳細："+format2)
+            labelX4=ttk.Label(frame1,text="ファイル名："+name)
+            frame1.pack()
+            labelX4.pack(side=TOP)
+            labelX1.pack(side=TOP)
+            labelX2.pack(side=TOP)
+            labelX3.pack(side=TOP)
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
@@ -5177,12 +5418,15 @@ def url_change():
     frame = ttk.Frame(root, padding=12)
 
     def url_change2():
-        if var.get()==0:
-            result=urllib.parse.quote(clip.paste())
-        else:
-            result=urllib.parse.unquote(clip.paste())
-        clip.copy(result)
-        messagebox.showinfo("結果",result+"\nをクリップボードにコピーしました")
+        try:
+            if var.get()==0:
+                result=urllib.parse.quote(clip.paste())
+            else:
+                result=urllib.parse.unquote(clip.paste())
+            clip.copy(result)
+            messagebox.showinfo("結果",result+"\nをクリップボードにコピーしました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -5207,13 +5451,16 @@ def voice2read():
     frame = ttk.Frame(root, padding=12)
 
     def top(drop):
-        x=drop.data.replace("{","").replace("}","").replace("\\","/")
-        r = sr.Recognizer()
-        with sr.AudioFile(x) as source:
-            audio = r.record(source)
-        text = r.recognize_google(audio, language=var.get())
-        box.delete("1.0",END)
-        box.insert(END,text)
+        try:
+            x=drop.data.replace("{","").replace("}","").replace("\\","/")
+            r = sr.Recognizer()
+            with sr.AudioFile(x) as source:
+                audio = r.record(source)
+            text = r.recognize_google(audio, language=var.get())
+            box.delete("1.0",END)
+            box.insert(END,text)
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
@@ -5245,11 +5492,14 @@ def video_size():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            clip_orig = VideoFileClip(x)
-            clip = resize(clip_orig, (int(entry_w.get()), int(entry_h.get())))
-            name=os.path.basename(x)
-            name1=x.replace(name,"resized_"+name)
-            clip.write_videofile(name1,logger=None)
+            try:
+                clip_orig = VideoFileClip(x)
+                clip = resize(clip_orig, (int(entry_w.get()), int(entry_h.get())))
+                name=os.path.basename(x)
+                name1=x.replace(name,"resized_"+name)
+                clip.write_videofile(name1,logger=None)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
         messagebox.showinfo("結果","完了しました")
 
     label_w=ttk.Label(frame,text="横幅：")
@@ -5280,12 +5530,15 @@ def video_BW():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            clip_orig = VideoFileClip(x)
-            clip = blackwhite(clip_orig)
-            name=os.path.basename(x)
-            name1=x.replace(name,"BW_"+name)
-            clip.write_videofile(name1,logger=None)
-        messagebox.showinfo("結果","完了しました")
+            try:
+                clip_orig = VideoFileClip(x)
+                clip = blackwhite(clip_orig)
+                name=os.path.basename(x)
+                name1=x.replace(name,"BW_"+name)
+                clip.write_videofile(name1,logger=None)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
+        messagebox.showinfo("結果","終了しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
@@ -5307,11 +5560,14 @@ def video_light():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            clip_orig = VideoFileClip(x)
-            clip = lum_contrast(clip_orig, lum=float(entry1.get()), contrast=float(entry2.get()))
-            name=os.path.basename(x)
-            name1=x.replace(name,"light_"+name)
-            clip.write_videofile(name1,logger=None)
+            try:
+                clip_orig = VideoFileClip(x)
+                clip = lum_contrast(clip_orig, lum=float(entry1.get()), contrast=float(entry2.get()))
+                name=os.path.basename(x)
+                name1=x.replace(name,"light_"+name)
+                clip.write_videofile(name1,logger=None)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
         messagebox.showinfo("結果","完了しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -5351,11 +5607,14 @@ def video_frame():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            clip_orig = VideoFileClip(x)
-            clip = margin(clip_orig, mar=int(entry1.get()), color=convert_color_code_to_rgb(entry2.get()))
-            name=os.path.basename(x)
-            name1=x.replace(name,"frame_"+name)
-            clip.write_videofile(name1,logger=None)
+            try:
+                clip_orig = VideoFileClip(x)
+                clip = margin(clip_orig, mar=int(entry1.get()), color=convert_color_code_to_rgb(entry2.get()))
+                name=os.path.basename(x)
+                name1=x.replace(name,"frame_"+name)
+                clip.write_videofile(name1,logger=None)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
         messagebox.showinfo("結果","完了しました")
 
     label1=ttk.Label(frame,text="枠組みの幅：")
@@ -5385,34 +5644,37 @@ def color_code():
     frame = ttk.Frame(root, padding=12)
 
     def color_change():
-        if entry2_r.get()=="" and entry1.get()!= "":
-            color_code=entry1.get()
-            r = int(color_code[1:3], 16)
-            g = int(color_code[3:5], 16)
-            b = int(color_code[5:7], 16)
-            root2=Toplevel()
-            root2.title("変換結果")
-            root2.geometry('+%d+%d'%(x,y))
-            root2.attributes("-topmost", True)
-            result=ttk.Label(root2,text=f"(R,G,B)=({r},{g},{b})",font=("Helvetica", 16))
-            button=ttk.Button(root2,text="コピー",command=lambda:clip.copy(f"({r},{g},{b})"))
-            result.pack(side=TOP)
-            button.pack(side=TOP)
+        try:
+            if entry2_r.get()=="" and entry1.get()!= "":
+                color_code=entry1.get()
+                r = int(color_code[1:3], 16)
+                g = int(color_code[3:5], 16)
+                b = int(color_code[5:7], 16)
+                root2=Toplevel()
+                root2.title("変換結果")
+                root2.geometry('+%d+%d'%(x,y))
+                root2.attributes("-topmost", True)
+                result=ttk.Label(root2,text=f"(R,G,B)=({r},{g},{b})",font=("Helvetica", 16))
+                button=ttk.Button(root2,text="コピー",command=lambda:clip.copy(f"({r},{g},{b})"))
+                result.pack(side=TOP)
+                button.pack(side=TOP)
 
-        elif entry1.get()=="" and entry2_r.get()!="" and entry2_g.get()!="" and entry2_b.get()!="":
-            rgb=[int(entry2_r.get()),int(entry2_g.get()),int(entry2_b.get())]
-            hex_code = '#{:02x}{:02x}{:02x}'.format(rgb[0], rgb[1], rgb[2])
-            root2=Toplevel()
-            root2.title("変換結果")
-            root2.geometry('+%d+%d'%(x,y))
-            root2.attributes("-topmost", True)
-            result=ttk.Label(root2,text="カラーコード："+hex_code,font=("Helvetica", 16))
-            button=ttk.Button(root2,text="コピー",command=lambda:clip.copy(hex_code))
-            result.pack(side=TOP)
-            button.pack(side=TOP)
+            elif entry1.get()=="" and entry2_r.get()!="" and entry2_g.get()!="" and entry2_b.get()!="":
+                rgb=[int(entry2_r.get()),int(entry2_g.get()),int(entry2_b.get())]
+                hex_code = '#{:02x}{:02x}{:02x}'.format(rgb[0], rgb[1], rgb[2])
+                root2=Toplevel()
+                root2.title("変換結果")
+                root2.geometry('+%d+%d'%(x,y))
+                root2.attributes("-topmost", True)
+                result=ttk.Label(root2,text="カラーコード："+hex_code,font=("Helvetica", 16))
+                button=ttk.Button(root2,text="コピー",command=lambda:clip.copy(hex_code))
+                result.pack(side=TOP)
+                button.pack(side=TOP)
 
-        else :
-            messagebox.showerror("エラー","正しく入力してください")
+            else :
+                messagebox.showerror("エラー","正しく入力してください")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     def del_input():
         entry1.delete(0,END)
@@ -5465,26 +5727,29 @@ def translate_text():
         button_2.pack(side=TOP)
 
     def translate_lang():
-        translator = Translator()
-        text=clip.paste()
-        if box1.get()=="auto":
-            lang=translator.detect(text).lang
-        else:
-            lang=box1.get()
-        text1=translator.translate(text, src=lang, dest=box2.get()).text
-        lang_name = LANGUAGES.get(lang)
-        root1=Toplevel()
-        root1.title("翻訳結果")
-        root1.geometry('+%d+%d'%(x,y))
-        root1.attributes("-topmost", True)
-        box=ScrolledText(root1,width=40,height=20)
-        label=ttk.Label(root1,text=f"{lang_name}→{LANGUAGES.get(box2.get())}",font=("Helvetica", 12))
-        box.insert(END,text1)
-        button_n=ttk.Button(root1,text="コピー",command=lambda:[clip.copy(text1),
-                                                             messagebox.showinfo("完了","コピーしました")])
-        label.pack(side=TOP)
-        box.pack(side=TOP)
-        button_n.pack(side=TOP)
+        try:
+            translator = Translator()
+            text=clip.paste()
+            if box1.get()=="auto":
+                lang=translator.detect(text).lang
+            else:
+                lang=box1.get()
+            text1=translator.translate(text, src=lang, dest=box2.get()).text
+            lang_name = LANGUAGES.get(lang)
+            root1=Toplevel()
+            root1.title("翻訳結果")
+            root1.geometry('+%d+%d'%(x,y))
+            root1.attributes("-topmost", True)
+            box=ScrolledText(root1,width=40,height=20)
+            label=ttk.Label(root1,text=f"{lang_name}→{LANGUAGES.get(box2.get())}",font=("Helvetica", 12))
+            box.insert(END,text1)
+            button_n=ttk.Button(root1,text="コピー",command=lambda:[clip.copy(text1),
+                                                                messagebox.showinfo("完了","コピーしました")])
+            label.pack(side=TOP)
+            box.pack(side=TOP)
+            button_n.pack(side=TOP)
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
 
     input_lang=["auto","ja","en"]
@@ -5528,12 +5793,15 @@ def pass_check():
         return 0
 
     def check_pass1():
-        password = entry.get()
-        count = check_password(password)
-        if count:
-            messagebox.showinfo("結果",f"パスワードは{count}回流出しています")
-        else:
-            messagebox.showinfo("結果","パスワードは流出していません")
+        try:
+            password = entry.get()
+            count = check_password(password)
+            if count:
+                messagebox.showinfo("結果",f"パスワードは{count}回流出しています")
+            else:
+                messagebox.showinfo("結果","パスワードは流出していません")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     label=ttk.Label(frame,text="パスワードを入力してください")
     entry=ttk.Entry(frame,width=30)
@@ -5557,12 +5825,15 @@ def voice_delete():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            name=os.path.basename(x)
-            name1=x.replace(name,"del_voice_"+name)
-            video_path = x
-            video = VideoFileClip(video_path)
-            video_without_audio = video.without_audio()
-            video_without_audio.write_videofile(name1,logger=None)
+            try:
+                name=os.path.basename(x)
+                name1=x.replace(name,"del_voice_"+name)
+                video_path = x
+                video = VideoFileClip(video_path)
+                video_without_audio = video.without_audio()
+                video_without_audio.write_videofile(name1,logger=None)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
         messagebox.showinfo("完了","音声を削除しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -5588,29 +5859,32 @@ def site_title():
             return None
 
     def url_title():
-        url=clip.paste()
-        title=get_url_title(url)
-        if title==None:
-            messagebox.showinfo("結果","タイトルを取得できませんでした")
-        else:
-            root1=Toplevel()
-            root1.title("結果")
-            root1.configure(bg="gray")
-            root1.geometry('+%d+%d'%(x,y))
-            root1.attributes("-topmost", True)
-            label1=Label(root1,text=title,font=("Helvetica", 12))
-            frame_1=Frame(root1)
-            button1=ttk.Button(frame_1,text="タイトルのみ",command=lambda:[clip.copy(title),messagebox.showinfo("取得","コピーしました"),root1.focus_set()])
-            button2=ttk.Button(frame_1,text="マークダウン",command=lambda:[clip.copy(f"[{title}]({url})"),messagebox.showinfo("取得","コピーしました"),root1.focus_set()])
-            button3=ttk.Button(frame_1,text="HTML",command=lambda:[clip.copy(f"<a href='{url}'>{title}</a>"),messagebox.showinfo("取得","コピーしました"),root1.focus_set()])
-            button4=ttk.Button(frame_1,text="参考文献",command=lambda:[book(url,title),root1.focus_set()])
+        try:
+            url=clip.paste()
+            title=get_url_title(url)
+            if title==None:
+                messagebox.showinfo("結果","タイトルを取得できませんでした")
+            else:
+                root1=Toplevel()
+                root1.title("結果")
+                root1.configure(bg="gray")
+                root1.geometry('+%d+%d'%(x,y))
+                root1.attributes("-topmost", True)
+                label1=Label(root1,text=title,font=("Helvetica", 12))
+                frame_1=Frame(root1)
+                button1=ttk.Button(frame_1,text="タイトルのみ",command=lambda:[clip.copy(title),messagebox.showinfo("取得","コピーしました"),root1.focus_set()])
+                button2=ttk.Button(frame_1,text="マークダウン",command=lambda:[clip.copy(f"[{title}]({url})"),messagebox.showinfo("取得","コピーしました"),root1.focus_set()])
+                button3=ttk.Button(frame_1,text="HTML",command=lambda:[clip.copy(f"<a href='{url}'>{title}</a>"),messagebox.showinfo("取得","コピーしました"),root1.focus_set()])
+                button4=ttk.Button(frame_1,text="参考文献",command=lambda:[book(url,title),root1.focus_set()])
 
-            label1.pack(side=TOP)
-            frame_1.pack(side=TOP)
-            button1.grid(row=0,column=0)
-            button2.grid(row=0,column=1)
-            button3.grid(row=0,column=2)
-            button4.grid(row=1,column=0)
+                label1.pack(side=TOP)
+                frame_1.pack(side=TOP)
+                button1.grid(row=0,column=0)
+                button2.grid(row=0,column=1)
+                button3.grid(row=0,column=2)
+                button4.grid(row=1,column=0)
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     def book(url,title):
         dt_now = datetime.now()
@@ -5818,13 +6092,16 @@ def n_del():
     frame = ttk.Frame(root, padding=4)
 
     def n_del1():
-        x=clip.paste()
-        if var1.get()==1:
-            x=x.replace("\n","").replace("\r","").replace("\r\n","")
-        if var2.get()==1:
-            x=x.replace(".",".\n").replace("。","。\n")
-        clip.copy(x)
-        messagebox.showinfo("取得","コピーしました")
+        try:
+            x=clip.paste()
+            if var1.get()==1:
+                x=x.replace("\n","").replace("\r","").replace("\r\n","")
+            if var2.get()==1:
+                x=x.replace(".",".\n").replace("。","。\n")
+            clip.copy(x)
+            messagebox.showinfo("取得","コピーしました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
 
     var1=IntVar()
@@ -5852,12 +6129,15 @@ def image_mirror():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            name=os.path.basename(x)
-            y=x.replace(name,"mirror_"+name)
-            img=Image.open(x)
-            im_mirror = ImageOps.mirror(img)
-            im_mirror.save(y)
-        messagebox.showinfo("完了","ミラー画像を保存しました")
+            try:
+                name=os.path.basename(x)
+                y=x.replace(name,"mirror_"+name)
+                img=Image.open(x)
+                im_mirror = ImageOps.mirror(img)
+                im_mirror.save(y)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
+        messagebox.showinfo("完了","終了しました")
 
     label=ttk.Label(frame,text="画像ファイルをここに\nドロップしてください",font=("Helvetica", 16))
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -5879,14 +6159,17 @@ def video_mirror():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            name=os.path.basename(x)
-            y=x.replace(name,"mirror_"+name)
-            mov=VideoFileClip(x)
-            if var1.get()==1:
-                mov=mirror_x(mov)
-            if var2.get()==1:
-                mov=mirror_y(mov)
-            mov.write_videofile(y,logger=None)
+            try:
+                name=os.path.basename(x)
+                y=x.replace(name,"mirror_"+name)
+                mov=VideoFileClip(x)
+                if var1.get()==1:
+                    mov=mirror_x(mov)
+                if var2.get()==1:
+                    mov=mirror_y(mov)
+                mov.write_videofile(y,logger=None)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
         messagebox.showinfo("完了","ミラー動画を保存しました")
 
 
@@ -5980,13 +6263,16 @@ def sort_list():
     frame = ttk.Frame(root, padding=4)
 
     def sort_list1():
-        x_list=box.get("1.0","end-1c").rstrip().split("\n")
-        if var1.get()==1:
-            x_list.sort()
-        else:
-            x_list.sort(reverse=True)
-        box.delete("1.0","end")
-        box.insert("1.0","\n".join(x_list))
+        try:
+            x_list=box.get("1.0","end-1c").rstrip().split("\n")
+            if var1.get()==1:
+                x_list.sort()
+            else:
+                x_list.sort(reverse=True)
+            box.delete("1.0","end")
+            box.insert("1.0","\n".join(x_list))
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     var1=IntVar()
     radio1=ttk.Radiobutton(frame,text="昇順",value=1,variable=var1)
@@ -6024,11 +6310,14 @@ def pdf_pass():
         dst_pdf.write(dst_path)
 
     def pdf_pass1(drop):
-        x=drop.data.replace("{","").replace("}","").replace("\\","/")
-        name=os.path.basename(x)
-        y=x.replace(name,"unlock_"+name)
-        change_password(x,y,entry.get())
-        messagebox.showinfo("完了","パスワードを解除しました")
+        try:
+            x=drop.data.replace("{","").replace("}","").replace("\\","/")
+            name=os.path.basename(x)
+            y=x.replace(name,"unlock_"+name)
+            change_password(x,y,entry.get())
+            messagebox.showinfo("完了","パスワードを解除しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     label=ttk.Label(frame,text="パスワードをかけるPDFファイルを\nドロップしてください",font=("Helvetica", 16))
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -6051,31 +6340,34 @@ def bmi():
     frame = ttk.Frame(root, padding=4)
 
     def bmi1():
-        x1=float(entry1.get())
-        x2=float(entry2.get())
-        x3=x2/(x1/100)**2
-        x4=(x1/100)**2*22
-        entry3.delete(0,END)
-        entry4.delete(0,END)
-        entry3.insert(END,str(round(x3,2)))
-        entry4.insert(END,str(round(x4,2))+"kg")
-        x6=x2-x4
-        if x3<18.5:
-            x5="低体重"
-        elif x3<25.0:
-            x5="普通体重"
-        elif x3<30.0:
-            x5="肥満（1度）"
-        elif x3<35.0:
-            x5="肥満（2度）"
-        elif x3<40.0:
-            x5="肥満（3度）"
-        else:
-            x5="肥満（4度）"
-        entry5.delete(0,END)
-        entry5.insert(END,x5)
-        entry6.delete(0,END)
-        entry6.insert(END,str(round(x6,2))+"kg")
+        try:
+            x1=float(entry1.get())
+            x2=float(entry2.get())
+            x3=x2/(x1/100)**2
+            x4=(x1/100)**2*22
+            entry3.delete(0,END)
+            entry4.delete(0,END)
+            entry3.insert(END,str(round(x3,2)))
+            entry4.insert(END,str(round(x4,2))+"kg")
+            x6=x2-x4
+            if x3<18.5:
+                x5="低体重"
+            elif x3<25.0:
+                x5="普通体重"
+            elif x3<30.0:
+                x5="肥満（1度）"
+            elif x3<35.0:
+                x5="肥満（2度）"
+            elif x3<40.0:
+                x5="肥満（3度）"
+            else:
+                x5="肥満（4度）"
+            entry5.delete(0,END)
+            entry5.insert(END,x5)
+            entry6.delete(0,END)
+            entry6.insert(END,str(round(x6,2))+"kg")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     label1=ttk.Label(frame,text="身長(cm)：")
     label2=ttk.Label(frame,text="体重(kg)：")
@@ -6126,66 +6418,69 @@ def net_info():
         return re.match(url_regex, string) is not None
 
     def net_info1():
-        code=entrya.get()
-        if is_url(code):
-            parsed_url = urlparse(code)
-            domain = parsed_url.netloc
-            ip = socket.gethostbyname(domain)
-        else:
-            ip=code
-        url=f"http://ip-api.com/json/{str(ip)}?fields=status,country,regionName,city,district,zip,org"
-        response = requests.get(url)
-        data = response.json()
-        if data['status'] == "fail":
-            messagebox.showerror("エラー", "取得に失敗しました")
-            return
-        else:
-            country= data['country']
-            regionName = data['regionName']
-            city= data['city']
-            district = data['district']
-            zip_1= data['zip']
-            org= data['org']
-            root2 = Toplevel()
-            root2.title("IP情報")
-            root2.attributes("-topmost", True)
-            root2.geometry('+%d+%d'%(x,y))
-            label1=ttk.Label(root2,text="国：")
-            label2=ttk.Label(root2,text="地域：")
-            label3=ttk.Label(root2,text="都市：")
-            label4=ttk.Label(root2,text="区：")
-            label5=ttk.Label(root2,text="郵便番号：")
-            label6=ttk.Label(root2,text="組織：")
-            label7=ttk.Label(root2,text="IPアドレス：")
-            entry1=ttk.Entry(root2,width=30)
-            entry2=ttk.Entry(root2,width=30)
-            entry3=ttk.Entry(root2,width=30)
-            entry4=ttk.Entry(root2,width=30)
-            entry5=ttk.Entry(root2,width=30)
-            entry6=ttk.Entry(root2,width=30)
-            entry7=ttk.Entry(root2,width=30)
-            entry1.insert(END,country)
-            entry2.insert(END,regionName)
-            entry3.insert(END,city)
-            entry4.insert(END,district)
-            entry5.insert(END,zip_1)
-            entry6.insert(END,org)
-            entry7.insert(END,ip)
+        try:
+            code=entrya.get()
+            if is_url(code):
+                parsed_url = urlparse(code)
+                domain = parsed_url.netloc
+                ip = socket.gethostbyname(domain)
+            else:
+                ip=code
+            url=f"http://ip-api.com/json/{str(ip)}?fields=status,country,regionName,city,district,zip,org"
+            response = requests.get(url)
+            data = response.json()
+            if data['status'] == "fail":
+                messagebox.showerror("エラー", "取得に失敗しました")
+                return
+            else:
+                country= data['country']
+                regionName = data['regionName']
+                city= data['city']
+                district = data['district']
+                zip_1= data['zip']
+                org= data['org']
+                root2 = Toplevel()
+                root2.title("IP情報")
+                root2.attributes("-topmost", True)
+                root2.geometry('+%d+%d'%(x,y))
+                label1=ttk.Label(root2,text="国：")
+                label2=ttk.Label(root2,text="地域：")
+                label3=ttk.Label(root2,text="都市：")
+                label4=ttk.Label(root2,text="区：")
+                label5=ttk.Label(root2,text="郵便番号：")
+                label6=ttk.Label(root2,text="組織：")
+                label7=ttk.Label(root2,text="IPアドレス：")
+                entry1=ttk.Entry(root2,width=30)
+                entry2=ttk.Entry(root2,width=30)
+                entry3=ttk.Entry(root2,width=30)
+                entry4=ttk.Entry(root2,width=30)
+                entry5=ttk.Entry(root2,width=30)
+                entry6=ttk.Entry(root2,width=30)
+                entry7=ttk.Entry(root2,width=30)
+                entry1.insert(END,country)
+                entry2.insert(END,regionName)
+                entry3.insert(END,city)
+                entry4.insert(END,district)
+                entry5.insert(END,zip_1)
+                entry6.insert(END,org)
+                entry7.insert(END,ip)
 
-            label7.grid(row=0,column=0)
-            entry7.grid(row=0,column=1)
-            label1.grid(row=0+1,column=0)
-            entry1.grid(row=0+1,column=1)
-            label2.grid(row=1+1,column=0)
-            entry2.grid(row=1+1,column=1)
-            label3.grid(row=2+1,column=0)
-            entry3.grid(row=2+1,column=1)
-            label4.grid(row=3+1,column=0)
-            entry4.grid(row=3+1,column=1)
-            label5.grid(row=4+1,column=0)
-            entry5.grid(row=4+1,column=1)
-            label6.grid(row=5+1,column=0)
-            entry6.grid(row=5+1,column=1)
+                label7.grid(row=0,column=0)
+                entry7.grid(row=0,column=1)
+                label1.grid(row=0+1,column=0)
+                entry1.grid(row=0+1,column=1)
+                label2.grid(row=1+1,column=0)
+                entry2.grid(row=1+1,column=1)
+                label3.grid(row=2+1,column=0)
+                entry3.grid(row=2+1,column=1)
+                label4.grid(row=3+1,column=0)
+                entry4.grid(row=3+1,column=1)
+                label5.grid(row=4+1,column=0)
+                entry5.grid(row=4+1,column=1)
+                label6.grid(row=5+1,column=0)
+                entry6.grid(row=5+1,column=1)
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     label1=ttk.Label(frame,text="IPアドレスかURLを入力してください：")
     entrya=ttk.Entry(frame,width=30)
@@ -6213,10 +6508,13 @@ def gif_split():
             frame_image.save(f"{output_path}/{name}{frame}.png")
 
     def top(drop):
-        x=drop.data.replace("{","").replace("}","").replace("\\","/")
-        out=filedialog.askdirectory(title="保存先を選択してください")
-        gif_to_images(x,out)
-        messagebox.showinfo("完了","完了しました")
+        try:
+            x=drop.data.replace("{","").replace("}","").replace("\\","/")
+            out=filedialog.askdirectory(title="保存先を選択してください")
+            gif_to_images(x,out)
+            messagebox.showinfo("完了","完了しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -6269,23 +6567,26 @@ def trapezoid():
         buf.tofile(z)
     def img_top(drop):
         nonlocal canvas_img,pil_img,z,origin,pil_img_1,x
-        x=drop.data.replace("{","").replace("}","").replace("\\","/")
-        y= os.path.basename(x)
-        z=x.replace(y,"trans_"+y)
-        pil_img=pil_img_1=Image.open(x)
-        if pil_img.width>pil_img.height:
-            origin=0
-            pil_img=pil_img.resize((int(ws/2),int(pil_img.height*((ws/2)/pil_img.width))),Image.LANCZOS)
-        elif pil_img.width<pil_img.height:
-            origin=1
-            pil_img=pil_img.resize((int(pil_img.width*((hs/2)/pil_img.height)),int(hs/2)),Image.LANCZOS)
-        elif pil_img.width==pil_img.height:
-            origin=2
-            pil_img=pil_img.resize((int(hs/2),int(hs/2)),Image.LANCZOS)
-        canvas.delete("all")
-        canvas_img= ImageTk.PhotoImage(pil_img)
-        canvas.create_image(pil_img.width/2,pil_img.height/2,image=canvas_img)
-        canvas.config(width=pil_img.width, height=pil_img.height)
+        try:
+            x=drop.data.replace("{","").replace("}","").replace("\\","/")
+            y= os.path.basename(x)
+            z=x.replace(y,"trans_"+y)
+            pil_img=pil_img_1=Image.open(x)
+            if pil_img.width>pil_img.height:
+                origin=0
+                pil_img=pil_img.resize((int(ws/2),int(pil_img.height*((ws/2)/pil_img.width))),Image.LANCZOS)
+            elif pil_img.width<pil_img.height:
+                origin=1
+                pil_img=pil_img.resize((int(pil_img.width*((hs/2)/pil_img.height)),int(hs/2)),Image.LANCZOS)
+            elif pil_img.width==pil_img.height:
+                origin=2
+                pil_img=pil_img.resize((int(hs/2),int(hs/2)),Image.LANCZOS)
+            canvas.delete("all")
+            canvas_img= ImageTk.PhotoImage(pil_img)
+            canvas.create_image(pil_img.width/2,pil_img.height/2,image=canvas_img)
+            canvas.config(width=pil_img.width, height=pil_img.height)
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     def on_press(event):
         nonlocal point
@@ -6336,28 +6637,31 @@ def trapezoid():
 
     def mozaic():
         nonlocal origin,x
-        point_list=[[pointX0,pointY0],[pointX1,pointY1],[pointX2,pointY2],[pointX3,pointY3]]
-        #left_top = min(point_list, key=lambda coord: coord[0] + coord[1])
-        #left_bottom = min(point_list, key=lambda coord: coord[0] - coord[1])
-        #right_bottom = max(point_list, key=lambda coord: coord[0] + coord[1])
-        #right_top = max(point_list, key=lambda coord: coord[0] - coord[1])
-        #point_list=[left_top,left_bottom,right_bottom,right_top]
+        try:
+            point_list=[[pointX0,pointY0],[pointX1,pointY1],[pointX2,pointY2],[pointX3,pointY3]]
+            #left_top = min(point_list, key=lambda coord: coord[0] + coord[1])
+            #left_bottom = min(point_list, key=lambda coord: coord[0] - coord[1])
+            #right_bottom = max(point_list, key=lambda coord: coord[0] + coord[1])
+            #right_top = max(point_list, key=lambda coord: coord[0] - coord[1])
+            #point_list=[left_top,left_bottom,right_bottom,right_top]
 
-        pil_img_1=Image.open(x)
-        if origin==2:
-            for i in range(4):
-                point_list[i][0]=int(point_list[i][0]*pil_img_1.width/int(hs/2))
-                point_list[i][1]=int(point_list[i][1]*pil_img_1.height/int(hs/2))
-        elif origin==1:
-            for i in range(4):
-                point_list[i][0]=int(point_list[i][0]*pil_img_1.width/int(pil_img_1.width*((hs/2)/pil_img_1.height)))
-                point_list[i][1]=int(point_list[i][1]*pil_img_1.height/int(hs/2))
-        elif origin==0:
-            for i in range(4):
-                point_list[i][0]=int(point_list[i][0]*pil_img_1.width/int(ws/2))
-                point_list[i][1]=int(point_list[i][1]*pil_img_1.height/int(pil_img_1.height*((ws/2)/pil_img_1.width)))
-        scansnap(point_list)
-        messagebox.showinfo("完了","完了しました")
+            pil_img_1=Image.open(x)
+            if origin==2:
+                for i in range(4):
+                    point_list[i][0]=int(point_list[i][0]*pil_img_1.width/int(hs/2))
+                    point_list[i][1]=int(point_list[i][1]*pil_img_1.height/int(hs/2))
+            elif origin==1:
+                for i in range(4):
+                    point_list[i][0]=int(point_list[i][0]*pil_img_1.width/int(pil_img_1.width*((hs/2)/pil_img_1.height)))
+                    point_list[i][1]=int(point_list[i][1]*pil_img_1.height/int(hs/2))
+            elif origin==0:
+                for i in range(4):
+                    point_list[i][0]=int(point_list[i][0]*pil_img_1.width/int(ws/2))
+                    point_list[i][1]=int(point_list[i][1]*pil_img_1.height/int(pil_img_1.height*((ws/2)/pil_img_1.width)))
+            scansnap(point_list)
+            messagebox.showinfo("完了","完了しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     start_x=None
     start_y=None
@@ -6403,24 +6707,27 @@ def shadow_delete():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            y= os.path.basename(x)
-            z=x.replace(y,"shadow_"+y)
-            img = cv2.imdecode(
-                np.fromfile(x, dtype=np.uint8),
-                cv2.IMREAD_UNCHANGED)
-            ksize = 51
-            blur = cv2.blur(img, (ksize, ksize))
-            rij = img/blur
-            index_1 = np.where(rij >= 1.00) # 1以上の値があると邪魔なため
-            rij[index_1] = 1
-            rij_int = np.array(rij*255, np.uint8) # 除算結果が実数値になるため整数に変換
-            rij_HSV = cv2.cvtColor(rij_int, cv2.COLOR_BGR2HSV)
-            ret, thresh = cv2.threshold(rij_HSV[:,:,2], 0, 255, cv2.THRESH_OTSU)
-            rij_HSV[:,:,2] = thresh
-            rij_ret = cv2.cvtColor(rij_HSV, cv2.COLOR_HSV2BGR)
-            _, buf = cv2.imencode('*.png', rij_ret)
-            buf.tofile(z)
-        messagebox.showinfo("完了","完了しました")
+            try:
+                y= os.path.basename(x)
+                z=x.replace(y,"shadow_"+y)
+                img = cv2.imdecode(
+                    np.fromfile(x, dtype=np.uint8),
+                    cv2.IMREAD_UNCHANGED)
+                ksize = 51
+                blur = cv2.blur(img, (ksize, ksize))
+                rij = img/blur
+                index_1 = np.where(rij >= 1.00) # 1以上の値があると邪魔なため
+                rij[index_1] = 1
+                rij_int = np.array(rij*255, np.uint8) # 除算結果が実数値になるため整数に変換
+                rij_HSV = cv2.cvtColor(rij_int, cv2.COLOR_BGR2HSV)
+                ret, thresh = cv2.threshold(rij_HSV[:,:,2], 0, 255, cv2.THRESH_OTSU)
+                rij_HSV[:,:,2] = thresh
+                rij_ret = cv2.cvtColor(rij_HSV, cv2.COLOR_HSV2BGR)
+                _, buf = cv2.imencode('*.png', rij_ret)
+                buf.tofile(z)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
+        messagebox.showinfo("完了","終了しました")
 
 
     label=ttk.Label(frame,text="画像フォルダをここに\nドロップしてください",font=("Helvetica", 20))
@@ -6443,15 +6750,18 @@ def video_convert():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            clip=VideoFileClip(x)
-            _,youso=os.path.splitext(x)
-            if var1.get()==1 and youso!=".mp4":
-                clip.write_videofile(x.replace(youso,".mp4"),codec="libx264",logger=None)
-            if var2.get()==1 and youso!=".avi":
-                clip.write_videofile(x.replace(youso,".avi"),codec="libx264",logger=None)
-            if var3.get()==1 and youso!=".mov":
-                clip.write_videofile(x.replace(youso,".mov"),codec="libx264",logger=None)
-        messagebox.showinfo("完了","完了しました")
+            try:
+                clip=VideoFileClip(x)
+                _,youso=os.path.splitext(x)
+                if var1.get()==1 and youso!=".mp4":
+                    clip.write_videofile(x.replace(youso,".mp4"),codec="libx264",logger=None)
+                if var2.get()==1 and youso!=".avi":
+                    clip.write_videofile(x.replace(youso,".avi"),codec="libx264",logger=None)
+                if var3.get()==1 and youso!=".mov":
+                    clip.write_videofile(x.replace(youso,".mov"),codec="libx264",logger=None)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
+        messagebox.showinfo("完了","終了しました")
 
     var1=IntVar()
     check1=ttk.Checkbutton(frame,text="mp4",variable=var1,onvalue=1,offvalue=0)
@@ -6482,11 +6792,14 @@ def video_fps():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            name=os.path.basename(x)
-            y=x.replace(name,"fps"+entry.get()+"_"+name)
-            clip = VideoFileClip(x)
-            n=clip.set_fps(int(entry.get()))
-            n.write_videofile(y,logger=None)
+            try:
+                name=os.path.basename(x)
+                y=x.replace(name,"fps"+entry.get()+"_"+name)
+                clip = VideoFileClip(x)
+                n=clip.set_fps(int(entry.get()))
+                n.write_videofile(y,logger=None)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
         messagebox.showinfo("完了","完了しました")
 
 
@@ -6519,13 +6832,16 @@ def video_bgm():
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            name=os.path.basename(x)
-            y=x.replace(name,"bgm_"+name)
-            clip = VideoFileClip(x)
-            bgm_clip = AudioFileClip(entry.get())
-            bgm_loop = bgm_clip.audio_loop(duration=clip.duration)
-            n=clip.set_audio(bgm_loop)
-            n.write_videofile(y,logger=None)
+            try:
+                name=os.path.basename(x)
+                y=x.replace(name,"bgm_"+name)
+                clip = VideoFileClip(x)
+                bgm_clip = AudioFileClip(entry.get())
+                bgm_loop = bgm_clip.audio_loop(duration=clip.duration)
+                n=clip.set_audio(bgm_loop)
+                n.write_videofile(y,logger=None)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
         messagebox.showinfo("完了","完了しました")
 
     label1=ttk.Label(frame,text="動画フォルダをここに\nドロップしてください",font=("Helvetica", 16))
@@ -6553,12 +6869,15 @@ def duplication():
     frame = ttk.Frame(root, padding=4)
 
     def duplication1():
-        x=box.get("1.0",END)
-        text=x.split("\n")
-        text1=list(dict.fromkeys(text))
-        result = '\n'.join(text1)
-        box.delete("1.0",END)
-        box.insert("1.0",result)
+        try:
+            x=box.get("1.0",END)
+            text=x.split("\n")
+            text1=list(dict.fromkeys(text))
+            result = '\n'.join(text1)
+            box.delete("1.0",END)
+            box.insert("1.0",result)
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     box=ScrolledText(frame,width=40,height=30)
     button=ttk.Button(frame,text="実行",command=duplication1)
@@ -6809,55 +7128,58 @@ def renban_list():
     frame = ttk.Frame(root, padding=4)
 
     def renban_list1():
-        text=box.get("1.0","end").strip("\n").split("\n")
-        new_text=[]
-        for i,x in enumerate(text):
-            start=""
-            if var2.get()==2:
-                start="["+start
-            elif var2.get()==3:
-                start="「"+start
-            elif var2.get()==4:
-                start="("+start
-            if var1.get()==1:
-                start=start+f"{i+1}"
-            elif var1.get()==2:
-                start=start+en1[i]
-            elif var1.get()==3:
-                start=start+ja1[i]
-            elif var1.get()==4:
-                start=start+ja2[i]
-            elif var1.get()==5:
-                start=start+roma[i]
-            elif var1.get()==6:
-                start=start+en2[i]
-            elif var1.get()==7:
-                start=start;kanzi[i]
-            if var2.get()==2:
-                start=start+"]"
-            elif var2.get()==3:
-                start=start+"」"
-            elif var2.get()==4:
-                start=start+")"
-            if var3.get()==1:
-                start=start+"."
-            start=entry1.get()+start
-            if var3.get()==1:
-                end=start+x
+        try:
+            text=box.get("1.0","end").strip("\n").split("\n")
+            new_text=[]
+            for i,x in enumerate(text):
+                start=""
+                if var2.get()==2:
+                    start="["+start
+                elif var2.get()==3:
+                    start="「"+start
+                elif var2.get()==4:
+                    start="("+start
+                if var1.get()==1:
+                    start=start+f"{i+1}"
+                elif var1.get()==2:
+                    start=start+en1[i]
+                elif var1.get()==3:
+                    start=start+ja1[i]
+                elif var1.get()==4:
+                    start=start+ja2[i]
+                elif var1.get()==5:
+                    start=start+roma[i]
+                elif var1.get()==6:
+                    start=start+en2[i]
+                elif var1.get()==7:
+                    start=start;kanzi[i]
+                if var2.get()==2:
+                    start=start+"]"
+                elif var2.get()==3:
+                    start=start+"」"
+                elif var2.get()==4:
+                    start=start+")"
+                if var3.get()==1:
+                    start=start+"."
+                start=entry1.get()+start
+                if var3.get()==1:
+                    end=start+x
+                else:
+                    end=start+" "+x
+                new_text.append(end)
+            root2=Toplevel()
+            root2.title("連番リスト")
+            root2.attributes("-topmost", True)
+            box1=ScrolledText(root2,width=60,height=30)
+            if var4.get()==1:
+                box1.insert("1.0","  ".join(new_text))
             else:
-                end=start+" "+x
-            new_text.append(end)
-        root2=Toplevel()
-        root2.title("連番リスト")
-        root2.attributes("-topmost", True)
-        box1=ScrolledText(root2,width=60,height=30)
-        if var4.get()==1:
-            box1.insert("1.0","  ".join(new_text))
-        else:
-            box1.insert("1.0","\n".join(new_text))
-        box1.pack(side=TOP)
-        button_1=ttk.Button(root2,text="コピー",command=lambda:clip.copy(box1.get("1.0","end").strip("\n")))
-        button_1.pack(side=TOP)
+                box1.insert("1.0","\n".join(new_text))
+            box1.pack(side=TOP)
+            button_1=ttk.Button(root2,text="コピー",command=lambda:clip.copy(box1.get("1.0","end").strip("\n")))
+            button_1.pack(side=TOP)
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
 
     box=ScrolledText(frame,width=60,height=30)
@@ -7004,14 +7326,17 @@ def vidwo_fade():
         file=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(file)
         for x in file_list:
-            name=os.path.basename(x)
-            clip = VideoFileClip(x)
-            if fade_in.get()==1:
-                clip = fadein(clip, int(entry1.get()))
-            if fade_out.get()==1:
-                clip = fadeout(clip, int(entry2.get()))
-            name_res=x.replace(name,f"fade_{name}")
-            clip.write_videofile(name_res,logger=None)
+            try:
+                name=os.path.basename(x)
+                clip = VideoFileClip(x)
+                if fade_in.get()==1:
+                    clip = fadein(clip, int(entry1.get()))
+                if fade_out.get()==1:
+                    clip = fadeout(clip, int(entry2.get()))
+                name_res=x.replace(name,f"fade_{name}")
+                clip.write_videofile(name_res,logger=None)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
         messagebox.showinfo("完了","処理が完了しました")
 
     def select_fade():
@@ -7219,8 +7544,11 @@ def delete2file():
         file=drop.data.replace("{","").replace("}","").replace("\\","/")
         x_list=file_mult(file)
         for x in x_list:
-            dod_wipe_file(x)
-        messagebox.showinfo("完了","削除しました")
+            try:
+                dod_wipe_file(x)
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
+        messagebox.showinfo("完了","終了しました")
 
     def dod_wipe_file(file_path):
         if os.path.isfile(file_path):
@@ -7331,42 +7659,48 @@ def image_join():
             box.insert("end",x+"\n")
 
     def get_concat_h_multi_resize(im_list, resample=Image.BICUBIC):
-        min_height = min(im.height for im in im_list)
-        im_list_resize = [im.resize((int(im.width * min_height / im.height), min_height),resample=resample)
-                            for im in im_list]
-        total_width = sum(im.width for im in im_list_resize)
-        dst = Image.new('RGB', (total_width, min_height))
-        pos_x = 0
-        for im in im_list_resize:
-            dst.paste(im, (pos_x, 0))
-            pos_x += im.width
-        path=filedialog.asksaveasfilename(
-            title = "名前を付けて保存",
-            filetypes = [("PNG",".png"),("JPEG",".jpg"),("GIF",".gif"),("BMP",".bmp")],
-            defaultextension = "png",
-            initialfile="concat"
-            )
-        dst.save(path)
-        messagebox.showinfo("完了","保存しました")
+        try:
+            min_height = min(im.height for im in im_list)
+            im_list_resize = [im.resize((int(im.width * min_height / im.height), min_height),resample=resample)
+                                for im in im_list]
+            total_width = sum(im.width for im in im_list_resize)
+            dst = Image.new('RGB', (total_width, min_height))
+            pos_x = 0
+            for im in im_list_resize:
+                dst.paste(im, (pos_x, 0))
+                pos_x += im.width
+            path=filedialog.asksaveasfilename(
+                title = "名前を付けて保存",
+                filetypes = [("PNG",".png"),("JPEG",".jpg"),("GIF",".gif"),("BMP",".bmp")],
+                defaultextension = "png",
+                initialfile="concat"
+                )
+            dst.save(path)
+            messagebox.showinfo("完了","保存しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     def get_concat_v_multi_resize(im_list, resample=Image.BICUBIC):
-        min_width = min(im.width for im in im_list)
-        im_list_resize = [im.resize((min_width, int(im.height * min_width / im.width)),resample=resample)
-                        for im in im_list]
-        total_height = sum(im.height for im in im_list_resize)
-        dst = Image.new('RGB', (min_width, total_height))
-        pos_y = 0
-        for im in im_list_resize:
-            dst.paste(im, (0, pos_y))
-            pos_y += im.height
-        path=filedialog.asksaveasfilename(
-            title = "名前を付けて保存",
-            filetypes = [("PNG",".png"),("JPEG",".jpg"),("GIF",".gif"),("BMP",".bmp")],
-            defaultextension = "png",
-            initialfile="concat"
-            )
-        dst.save(path)
-        messagebox.showinfo("完了","保存しました")
+        try:
+            min_width = min(im.width for im in im_list)
+            im_list_resize = [im.resize((min_width, int(im.height * min_width / im.width)),resample=resample)
+                            for im in im_list]
+            total_height = sum(im.height for im in im_list_resize)
+            dst = Image.new('RGB', (min_width, total_height))
+            pos_y = 0
+            for im in im_list_resize:
+                dst.paste(im, (0, pos_y))
+                pos_y += im.height
+            path=filedialog.asksaveasfilename(
+                title = "名前を付けて保存",
+                filetypes = [("PNG",".png"),("JPEG",".jpg"),("GIF",".gif"),("BMP",".bmp")],
+                defaultextension = "png",
+                initialfile="concat"
+                )
+            dst.save(path)
+            messagebox.showinfo("完了","保存しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
@@ -7386,14 +7720,17 @@ def image_join():
     button_h.grid(row=3,column=1)
 
 def get_copyimage():
-    img = ImageGrab.grabclipboard()
-    path=filedialog.asksaveasfilename(
-        title = "名前を付けて保存",
-        filetypes = [("PNG",".png"),("JPEG",".jpg"),("GIF",".gif"),("BMP",".bmp")],
-        defaultextension = "png",
-        initialfile="copy_image"
-        )
-    img.save(path)
+    try:
+        img = ImageGrab.grabclipboard()
+        path=filedialog.asksaveasfilename(
+            title = "名前を付けて保存",
+            filetypes = [("PNG",".png"),("JPEG",".jpg"),("GIF",".gif"),("BMP",".bmp")],
+            defaultextension = "png",
+            initialfile="copy_image"
+            )
+        img.save(path)
+    except:
+        messagebox.showerror("エラー","失敗しました")
 
 def text_search():
     global frame,buttonY
@@ -7435,40 +7772,42 @@ def text_search():
     text.tag_configure("highlight", background="red")
 
 def site_image():
-    import datauri
-    url=clip.paste()
-    path=filedialog.askdirectory()
-    response = requests.get(url)
-    html_content = response.text
+    try:
+        url=clip.paste()
+        path=filedialog.askdirectory()
+        response = requests.get(url)
+        html_content = response.text
 
-    soup = BeautifulSoup(html_content, "html.parser")
+        soup = BeautifulSoup(html_content, "html.parser")
 
-    image_urls = []
-    for img_tag in soup.find_all("img"):
-        image_url = img_tag.get("src")
-        absolute_image_url = urljoin(url, image_url)
-        image_urls.append(absolute_image_url)
+        image_urls = []
+        for img_tag in soup.find_all("img"):
+            image_url = img_tag.get("src")
+            absolute_image_url = urljoin(url, image_url)
+            image_urls.append(absolute_image_url)
 
-    n=0
-    for image_url in image_urls:
-        if image_url.startswith("data:image/"):
-            image_data = datauri.parse(image_url).data
-        else:
-            response = requests.get(image_url)
-            image_data = response.content
-        filename = image_url.split("/")[-1]
-        parsed_url = urllib.parse.urlparse(filename)
-        filename_without_query = urllib.parse.unquote(parsed_url.path)
-        youso = os.path.splitext(filename_without_query)[1]
-        file_name1 = path + f"/image{n}" + youso
-        with open(file_name1, "wb") as f:
-            f.write(image_data)
-        if os.path.isfile(file_name1) and "." not in f"image{n}" + youso:
-            os.remove(file_name1)
-        else:
-            n += 1
+        n=0
+        for image_url in image_urls:
+            if image_url.startswith("data:image/"):
+                image_data = datauri.parse(image_url).data
+            else:
+                response = requests.get(image_url)
+                image_data = response.content
+            filename = image_url.split("/")[-1]
+            parsed_url = urllib.parse.urlparse(filename)
+            filename_without_query = urllib.parse.unquote(parsed_url.path)
+            youso = os.path.splitext(filename_without_query)[1]
+            file_name1 = path + f"/image{n}" + youso
+            with open(file_name1, "wb") as f:
+                f.write(image_data)
+            if os.path.isfile(file_name1) and "." not in f"image{n}" + youso:
+                os.remove(file_name1)
+            else:
+                n += 1
 
-    messagebox.showinfo("完了","画像の保存が完了しました")
+        messagebox.showinfo("完了","画像の保存が完了しました")
+    except:
+        messagebox.showerror("エラー","失敗しました")
 
 def dice():
     global frame,buttonY
@@ -7511,15 +7850,18 @@ def dummy_txt():
     frame = ttk.Frame(root)
 
     def dumy_tet1():
-        text=dumy_text()[:int(entry1.get())]
-        result = ""
-        if int(entry2.get())==0:
-            result=text
-        else:
-            for i in range(0, len(text), int(entry2.get())):
-                result += text[i:i+10] + "\n"
-        clip.copy(result)
-        messagebox.showinfo("完了","ダミーテキストをクリップボードにコピーしました")
+        try:
+            text=dumy_text()[:int(entry1.get())]
+            result = ""
+            if int(entry2.get())==0:
+                result=text
+            else:
+                for i in range(0, len(text), int(entry2.get())):
+                    result += text[i:i+10] + "\n"
+            clip.copy(result)
+            messagebox.showinfo("完了","ダミーテキストをクリップボードにコピーしました")
+        except:
+            messagebox.showerror("エラー","入力値が不正です")
 
 
     label1=ttk.Label(frame,text="文字数")
@@ -7674,15 +8016,16 @@ def web_video_info():
     button.grid(row=2,column=0,columnspan=2)
     box.grid(row=3,column=0,columnspan=2)
 
-
-
 def empty_line():
-    text=clip.paste()
-    lines = text.split("\n")
-    non_empty_lines = [line for line in lines if line.strip()]
-    result = "\n".join(non_empty_lines)
-    clip.copy(result)
-    messagebox.showinfo("完了","空行を削除しました")
+    try:
+        text=clip.paste()
+        lines = text.split("\n")
+        non_empty_lines = [line for line in lines if line.strip()]
+        result = "\n".join(non_empty_lines)
+        clip.copy(result)
+        messagebox.showinfo("完了","空行を削除しました")
+    except:
+        messagebox.showerror("エラー","失敗しました")
 
 def mp3_tag():
     global frame,buttonY
@@ -7709,34 +8052,40 @@ def mp3_tag():
 
     def dnd(drop):
         nonlocal file1
-        file1=drop.data.replace("{","").replace("}","").replace("\\","/")
         try:
-            tags = EasyID3(file1)
+            file1=drop.data.replace("{","").replace("}","").replace("\\","/")
+            try:
+                tags = EasyID3(file1)
+            except:
+                audio = ID3()
+                audio.save(file1)
+                tags = EasyID3(file1)
+            if tags.get("title")!=None:
+                label2_1.configure(text=f"タイトル：{tags['title'][0]}")
+            if tags.get("artist")!=None:
+                label2_2.configure(text=f"アーティスト：{tags['artist'][0]}")
+            if tags.get("album")!=None:
+                label2_3.configure(text=f"アルバム：{tags['album'][0]}")
+            if tags.get("tracknumber")!=None:
+                label2_4.configure(text=f"トラック番号：{tags['tracknumber'][0]}")
         except:
-            audio = ID3()
-            audio.save(file1)
-            tags = EasyID3(file1)
-        if tags.get("title")!=None:
-            label2_1.configure(text=f"タイトル：{tags['title'][0]}")
-        if tags.get("artist")!=None:
-            label2_2.configure(text=f"アーティスト：{tags['artist'][0]}")
-        if tags.get("album")!=None:
-            label2_3.configure(text=f"アルバム：{tags['album'][0]}")
-        if tags.get("tracknumber")!=None:
-            label2_4.configure(text=f"トラック番号：{tags['tracknumber'][0]}")
+            messagebox.showerror("エラー","ファイル読み込みに失敗しました")
 
     def mp3_tag1():
-        tags = EasyID3(file1)
-        if var1.get()==1:
-            tags['title'] = entry1.get()
-        if var2.get()==1:
-            tags['artist'] = entry2.get()
-        if var3.get()==1:
-            tags['album'] = entry3.get()
-        if var4.get()==1:
-            tags['tracknumber'] = entry4.get()
-        tags.save()
-        messagebox.showinfo("完了","タグを変更しました")
+        try:
+            tags = EasyID3(file1)
+            if var1.get()==1:
+                tags['title'] = entry1.get()
+            if var2.get()==1:
+                tags['artist'] = entry2.get()
+            if var3.get()==1:
+                tags['album'] = entry3.get()
+            if var4.get()==1:
+                tags['tracknumber'] = entry4.get()
+            tags.save()
+            messagebox.showinfo("完了","タグを変更しました")
+        except:
+            messagebox.showerror("エラー","タグの変更に失敗しました")
 
 
     var1=IntVar()
@@ -7789,19 +8138,22 @@ def pdf_text():
     frame = ttk.Frame(root)
 
     def dnd(drop):
-        file1=drop.data.replace("{","").replace("}","").replace("\\","/")
-        reader = pypdf.PdfReader(file1)
-        number_of_pages = len(reader.pages)
-        root1=Toplevel()
-        root1.title("PDFからテキスト抽出")
-        box=ScrolledText(root1,width=60,height=30)
-        root1.attributes("-topmost",True)
-        box.pack()
-        for i in range(number_of_pages+1):
-            page = reader.pages[i]
-            text = f"ページ{i+1}\n"+page.extract_text()+"\n"
-            box.insert("end",text)
-        messagebox.showinfo("完了","テキストを抽出しました")
+        try:
+            file1=drop.data.replace("{","").replace("}","").replace("\\","/")
+            reader = pypdf.PdfReader(file1)
+            number_of_pages = len(reader.pages)
+            root1=Toplevel()
+            root1.title("PDFからテキスト抽出")
+            box=ScrolledText(root1,width=60,height=30)
+            root1.attributes("-topmost",True)
+            box.pack()
+            for i in range(number_of_pages+1):
+                page = reader.pages[i]
+                text = f"ページ{i+1}\n"+page.extract_text()+"\n"
+                box.insert("end",text)
+            messagebox.showinfo("完了","テキストを抽出しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
@@ -7820,19 +8172,22 @@ def file_hash():
     frame = ttk.Frame(root)
 
     def dnd(drop):
-        file_1=drop.data.replace("{","").replace("}","").replace("\\","/")
-        with open(file_1, 'rb') as file:
-            fileData = file.read()
-        if var.get()==0:
-            hash = hashlib.md5(fileData).hexdigest()
-        elif var.get()==1:
-            hash = hashlib.sha1(fileData).hexdigest()
-        elif var.get()==2:
-            hash = hashlib.sha256(fileData).hexdigest()
-        elif var.get()==3:
-            hash = hashlib.sha512(fileData).hexdigest()
-        box.delete("1.0","end")
-        box.insert("end",hash)
+        try:
+            file_1=drop.data.replace("{","").replace("}","").replace("\\","/")
+            with open(file_1, 'rb') as file:
+                fileData = file.read()
+            if var.get()==0:
+                hash = hashlib.md5(fileData).hexdigest()
+            elif var.get()==1:
+                hash = hashlib.sha1(fileData).hexdigest()
+            elif var.get()==2:
+                hash = hashlib.sha256(fileData).hexdigest()
+            elif var.get()==3:
+                hash = hashlib.sha512(fileData).hexdigest()
+            box.delete("1.0","end")
+            box.insert("end",hash)
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
@@ -7865,16 +8220,19 @@ def text_hash():
     frame = ttk.Frame(root)
 
     def text_hash_execute():
-        if var.get()==0:
-            hs = hashlib.md5(entry1.get( 0., END ).rstrip().encode()).hexdigest()
-        elif var.get()==1:
-            hs = hashlib.sha1(entry1.get( 0., END ).rstrip().encode()).hexdigest()
-        elif var.get()==2:
-            hs = hashlib.sha256(entry1.get( 0., END ).rstrip().encode()).hexdigest()
-        elif var.get()==3:
-            hs = hashlib.sha512(entry1.get( 0., END ).rstrip().encode()).hexdigest()
-        entry2.delete("1.0","end")
-        entry2.insert("end",hs)
+        try:
+            if var.get()==0:
+                hs = hashlib.md5(entry1.get( 0., END ).rstrip().encode()).hexdigest()
+            elif var.get()==1:
+                hs = hashlib.sha1(entry1.get( 0., END ).rstrip().encode()).hexdigest()
+            elif var.get()==2:
+                hs = hashlib.sha256(entry1.get( 0., END ).rstrip().encode()).hexdigest()
+            elif var.get()==3:
+                hs = hashlib.sha512(entry1.get( 0., END ).rstrip().encode()).hexdigest()
+            entry2.delete("1.0","end")
+            entry2.insert("end",hs)
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
@@ -7905,12 +8263,15 @@ def image_base64():
     frame = ttk.Frame(root)
 
     def dnd(drop):
-        path=drop.data.replace("{","").replace("}","").replace("\\","/")
-        with open(path, "rb") as file:
-            file_data = file.read()
-            b64_data = base64.b64encode(file_data).decode('utf-8')
-            clip.copy(b64_data)
-        messagebox.showinfo("完了","クリップボードにコピーしました")
+        try:
+            path=drop.data.replace("{","").replace("}","").replace("\\","/")
+            with open(path, "rb") as file:
+                file_data = file.read()
+                b64_data = base64.b64encode(file_data).decode('utf-8')
+                clip.copy(b64_data)
+            messagebox.showinfo("完了","クリップボードにコピーしました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
@@ -7924,9 +8285,9 @@ def image_base64():
     label.grid(row=1,column=0,columnspan=2)
 
 def url_shotcut():
-    url=clip.paste()
-    text="[InternetShortcut]\nURL="+url
     try:
+        url=clip.paste()
+        text="[InternetShortcut]\nURL="+url
         path=filedialog.asksaveasfilename(
             title = "名前を付けて保存",
             filetypes = [("URL", ".url")],
@@ -7969,17 +8330,20 @@ def cursive():
         return converted_text
 
     def cursive1():
-        text=box.get( 0., END ).rstrip()
-        text1=cursive_change(text)
-        root1=Toplevel()
-        root1.title("変換結果")
-        root1.attributes("-topmost",True)
-        root1.geometry('+%d+%d'%(x,y))
-        box1=ScrolledText(root1,width=56,height=20)
-        box1.insert(1.0,text1)
-        button_c=ttk.Button(root1,text="コピー",command=lambda:clip.copy(text1))
-        box1.pack()
-        button_c.pack()
+        try:
+            text=box.get( 0., END ).rstrip()
+            text1=cursive_change(text)
+            root1=Toplevel()
+            root1.title("変換結果")
+            root1.attributes("-topmost",True)
+            root1.geometry('+%d+%d'%(x,y))
+            box1=ScrolledText(root1,width=56,height=20)
+            box1.insert(1.0,text1)
+            button_c=ttk.Button(root1,text="コピー",command=lambda:clip.copy(text1))
+            box1.pack()
+            button_c.pack()
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     box=ScrolledText(frame,width=56,height=20)
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -8273,24 +8637,48 @@ def excel_csv():
     frame1.destroy()
     frame = ttk.Frame(root)
 
+    def widget_set():
+        if var.get()==0:
+            label1.grid(row=2,column=1)
+            spinbox.grid(row=2,column=0)
+            label["text"]="Excelファイルを\nドロップしてください"
+        elif var.get()==1:
+            label1.grid_forget()
+            spinbox.grid_forget()
+            label["text"]="CSVファイルを\nドロップしてください"
+
     def dnd(drop):
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
         file_list=file_mult(files)
         for x in file_list:
-            workbook = openpyxl.load_workbook(x)
-            sheet_names = workbook.sheetnames
-            y=x.replace(".xlsx",f"_{spinbox.get()}.csv")
-            if int(spinbox.get()) < len(sheet_names):
-                target_sheet_name = sheet_names[int(spinbox.get())]
-                sheet = workbook[target_sheet_name]
-                with open(y, 'w', newline='') as csv_file:
-                    csv_writer = csv.writer(csv_file)
-                    for row in sheet.iter_rows():
-                        csv_writer.writerow([cell.value for cell in row])
-            else:
-                messagebox.showerror("エラー",f"{x}の{spinbox.get()}ページが存在しません")
-            workbook.close()
-        messagebox.showinfo("完了","変換が完了しました")
+            try:
+                if var.get()==0:
+                    workbook = openpyxl.load_workbook(x)
+                    sheet_names = workbook.sheetnames
+                    y=x.replace(".xlsx",f"_{spinbox.get()}.csv")
+                    if int(spinbox.get()) < len(sheet_names):
+                        target_sheet_name = sheet_names[int(spinbox.get())]
+                        sheet = workbook[target_sheet_name]
+                        with open(y, 'w', newline='') as csv_file:
+                            csv_writer = csv.writer(csv_file)
+                            for row in sheet.iter_rows():
+                                csv_writer.writerow([cell.value for cell in row])
+                    else:
+                        messagebox.showerror("エラー",f"{x}の{spinbox.get()}ページが存在しません")
+                    workbook.close()
+                elif var.get()==1:
+                    y=x.replace(".csv",".xlsx")
+                    workbook = openpyxl.Workbook()
+                    sheet = workbook.active
+                    with open(x, 'r', encoding='utf-8') as csvfile:
+                        csvreader = csv.reader(csvfile)
+                        for row in csvreader:
+                            sheet.append(row)
+                    workbook.save(y)
+                    workbook.close()
+            except:
+                messagebox.showerror("エラー","失敗しました")
+        messagebox.showinfo("完了","終了しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
@@ -8299,44 +8687,20 @@ def excel_csv():
     frame.dnd_bind('<<Drop>>',dnd)
     label1=ttk.Label(frame,text="ページ目")
     spinbox=Spinbox(frame,from_=0,to=1000,width=5,increment=1)
+    var=IntVar()
+    var.set(0)
+    radio1=ttk.Radiobutton(frame,text="Excel→CSV",variable=var,value=0,command=widget_set)
+    radio2=ttk.Radiobutton(frame,text="CSV→Excel",variable=var,value=1,command=widget_set)
+
 
     frame.pack()
     buttonY.grid(row=0,column=0)
     buttonX.grid(row=0,column=1)
-    label1.grid(row=1,column=1)
-    spinbox.grid(row=1,column=0)
-    label.grid(row=2,column=0,columnspan=2)
-
-def csv_excel():
-    global frame,buttonY
-    frame1.destroy()
-    frame = ttk.Frame(root)
-
-    def dnd(drop):
-        files=drop.data.replace("{","").replace("}","").replace("\\","/")
-        file_list=file_mult(files)
-        for x in file_list:
-            y=x.replace(".csv",".xlsx")
-            workbook = openpyxl.Workbook()
-            sheet = workbook.active
-            with open(x, 'r', encoding='utf-8') as csvfile:
-                csvreader = csv.reader(csvfile)
-                for row in csvreader:
-                    sheet.append(row)
-            workbook.save(y)
-            workbook.close()
-        messagebox.showinfo("完了","変換が完了しました")
-
-    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
-    label=ttk.Label(frame,text="CSVファイルを\nドロップしてください",font=("Helvetica", 20))
-    frame.drop_target_register(DND_FILES)
-    frame.dnd_bind('<<Drop>>',dnd)
-
-    frame.pack()
-    buttonY.grid(row=0,column=0)
-    buttonX.grid(row=0,column=1)
-    label.grid(row=1,column=0,columnspan=2)
+    radio1.grid(row=1,column=0)
+    radio2.grid(row=1,column=1)
+    label1.grid(row=2,column=1)
+    spinbox.grid(row=2,column=0)
+    label.grid(row=3,column=0,columnspan=2)
 
 def unicode_normalize():
     global frame,buttonY
@@ -8344,17 +8708,20 @@ def unicode_normalize():
     frame = ttk.Frame(root)
 
     def unicode_normalize1():
-        s=clip.paste()
-        if var.get()==0:
-            x=unicodedata.normalize("NFKC",s)
-        elif var.get()==1:
-            x=unicodedata.normalize("NFKD",s)
-        elif var.get()==2:
-            x=unicodedata.normalize("NFC",s)
-        elif var.get()==3:
-            x=unicodedata.normalize("NFD",s)
-        clip.copy(x)
-        messagebox.showinfo("完了","変換が完了しました")
+        try:
+            s=clip.paste()
+            if var.get()==0:
+                x=unicodedata.normalize("NFKC",s)
+            elif var.get()==1:
+                x=unicodedata.normalize("NFKD",s)
+            elif var.get()==2:
+                x=unicodedata.normalize("NFC",s)
+            elif var.get()==3:
+                x=unicodedata.normalize("NFD",s)
+            clip.copy(x)
+            messagebox.showinfo("完了","変換が完了しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
@@ -8386,41 +8753,44 @@ def office_image():
         make_folder(os.getcwd()+"/temp1/office_zip")
         put_path=filedialog.askdirectory(title="保存先を選択してください")
         for x in file_list:
-            make_folder(os.getcwd()+"/temp1/office_zip")
-            if os.path.splitext(x)[1]==".docx":
-                shutil.copyfile(x, os.getcwd()+"/temp1/office_zip/temp.docx")
-                z=os.getcwd()+"/temp1/office_zip/temp.docx"
-                os.rename(z,z.replace(".docx",".zip"))
-                y=z.replace(".docx",".zip")
-            elif os.path.splitext(x)[1]==".pptx":
-                shutil.copyfile(x, os.getcwd()+"/temp1/office_zip/temp.pptx")
-                z=os.getcwd()+"/temp1/office_zip/temp.pptx"
-                os.rename(z,z.replace(".pptx",".zip"))
-                y=z.replace(".pptx",".zip")
-            elif os.path.splitext(x)[1]==".xlsx":
-                shutil.copyfile(x, os.getcwd()+"/temp1/office_zip/temp.xlsx")
-                z=os.getcwd()+"/temp1/office_zip/temp.xlsx"
-                os.rename(z,z.replace(".xlsx",".zip"))
-                y=z.replace(".xlsx",".zip")
-            with zipfile.ZipFile(y,'r') as inputFile:
-                inputFile.extractall(path=os.getcwd()+"/temp1/office_zip")
-            if os.path.splitext(x)[1]==".docx":
-                img_files = os.listdir(os.getcwd()+"/temp1/office_zip/word/media")
-                for img in img_files:
-                    if os.path.isfile(os.path.join(os.getcwd()+"/temp1/office_zip/word/media", img)):
-                        shutil.move(os.path.join(os.getcwd()+"/temp1/office_zip/word/media", img), put_path)
-            elif os.path.splitext(x)[1]==".pptx":
-                img_files = os.listdir(os.getcwd()+"/temp1/office_zip/ppt/media")
-                for img in img_files:
-                    if os.path.isfile(os.path.join(os.getcwd()+"/temp1/office_zip/ppt/media", img)):
-                        shutil.move(os.path.join(os.getcwd()+"/temp1/office_zip/ppt/media", img), put_path)
-            elif os.path.splitext(x)[1]==".xlsx":
-                img_files = os.listdir(os.getcwd()+"/temp1/office_zip/xl/media")
-                for img in img_files:
-                    if os.path.isfile(os.path.join(os.getcwd()+"/temp1/office_zip/xl/media", img)):
-                        shutil.move(os.path.join(os.getcwd()+"/temp1/office_zip/xl/media", img), put_path)
-            delete_folder(os.getcwd()+"/temp1/office_zip")
-        messagebox.showinfo("完了","変換が完了しました")
+            try:
+                make_folder(os.getcwd()+"/temp1/office_zip")
+                if os.path.splitext(x)[1]==".docx":
+                    shutil.copyfile(x, os.getcwd()+"/temp1/office_zip/temp.docx")
+                    z=os.getcwd()+"/temp1/office_zip/temp.docx"
+                    os.rename(z,z.replace(".docx",".zip"))
+                    y=z.replace(".docx",".zip")
+                elif os.path.splitext(x)[1]==".pptx":
+                    shutil.copyfile(x, os.getcwd()+"/temp1/office_zip/temp.pptx")
+                    z=os.getcwd()+"/temp1/office_zip/temp.pptx"
+                    os.rename(z,z.replace(".pptx",".zip"))
+                    y=z.replace(".pptx",".zip")
+                elif os.path.splitext(x)[1]==".xlsx":
+                    shutil.copyfile(x, os.getcwd()+"/temp1/office_zip/temp.xlsx")
+                    z=os.getcwd()+"/temp1/office_zip/temp.xlsx"
+                    os.rename(z,z.replace(".xlsx",".zip"))
+                    y=z.replace(".xlsx",".zip")
+                with zipfile.ZipFile(y,'r') as inputFile:
+                    inputFile.extractall(path=os.getcwd()+"/temp1/office_zip")
+                if os.path.splitext(x)[1]==".docx":
+                    img_files = os.listdir(os.getcwd()+"/temp1/office_zip/word/media")
+                    for img in img_files:
+                        if os.path.isfile(os.path.join(os.getcwd()+"/temp1/office_zip/word/media", img)):
+                            shutil.move(os.path.join(os.getcwd()+"/temp1/office_zip/word/media", img), put_path)
+                elif os.path.splitext(x)[1]==".pptx":
+                    img_files = os.listdir(os.getcwd()+"/temp1/office_zip/ppt/media")
+                    for img in img_files:
+                        if os.path.isfile(os.path.join(os.getcwd()+"/temp1/office_zip/ppt/media", img)):
+                            shutil.move(os.path.join(os.getcwd()+"/temp1/office_zip/ppt/media", img), put_path)
+                elif os.path.splitext(x)[1]==".xlsx":
+                    img_files = os.listdir(os.getcwd()+"/temp1/office_zip/xl/media")
+                    for img in img_files:
+                        if os.path.isfile(os.path.join(os.getcwd()+"/temp1/office_zip/xl/media", img)):
+                            shutil.move(os.path.join(os.getcwd()+"/temp1/office_zip/xl/media", img), put_path)
+                delete_folder(os.getcwd()+"/temp1/office_zip")
+            except:
+                messagebox.showerror("エラー","失敗しました")
+        messagebox.showinfo("完了","変換が終了しました")
 
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -8440,85 +8810,88 @@ def gif_video():
     frame = ttk.Frame(root)
 
     def gif_video1():
-        full_img= ImageGrab.grab()
-        button1["state"]="disabled"
-        button2["state"]="normal"
-        root1=Toplevel()
-        root1.attributes("-topmost", True)
-        def start():
-            nonlocal pil_img,pil_img1,canvas_img
-            pil_img=full_img
-            canvas.config(width=pil_img.width, height=pil_img.height)
-            canvas_img= ImageTk.PhotoImage(pil_img)
-            canvas.canvas_img = canvas_img
-            canvas.create_image(pil_img.width*0.5,pil_img.height*0.5,image=canvas_img)
-            root1.attributes('-fullscreen', True)
+        try:
+            full_img= ImageGrab.grab()
+            button1["state"]="disabled"
+            button2["state"]="normal"
+            root1=Toplevel()
+            root1.attributes("-topmost", True)
+            def start():
+                nonlocal pil_img,pil_img1,canvas_img
+                pil_img=full_img
+                canvas.config(width=pil_img.width, height=pil_img.height)
+                canvas_img= ImageTk.PhotoImage(pil_img)
+                canvas.canvas_img = canvas_img
+                canvas.create_image(pil_img.width*0.5,pil_img.height*0.5,image=canvas_img)
+                root1.attributes('-fullscreen', True)
 
-        def on_press(event):
-            canvas.delete("rect")
-            nonlocal start_x
-            nonlocal start_y
-            start_x = canvas.canvasx(event.x)
-            start_y = canvas.canvasy(event.y)
+            def on_press(event):
+                canvas.delete("rect")
+                nonlocal start_x
+                nonlocal start_y
+                start_x = canvas.canvasx(event.x)
+                start_y = canvas.canvasy(event.y)
 
-        def on_move_press(event):
-            nonlocal end_x, end_y
-            end_x, end_y = event.x, event.y
-            canvas.delete("rect")
-            canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="lightgreen", tags="rect", width=1.5)
+            def on_move_press(event):
+                nonlocal end_x, end_y
+                end_x, end_y = event.x, event.y
+                canvas.delete("rect")
+                canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="lightgreen", tags="rect", width=1.5)
 
-        def on_release(event):
-            nonlocal end_x, end_y
-            end_x, end_y = event.x, event.y
-            canvas.delete("rect")
-            canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="lightgreen", tags="rect", width=1.5)
-            root1.destroy()
-            t=threading.Thread(target=gif_sc,daemon=True)
-            t.start()
+            def on_release(event):
+                nonlocal end_x, end_y
+                end_x, end_y = event.x, event.y
+                canvas.delete("rect")
+                canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="lightgreen", tags="rect", width=1.5)
+                root1.destroy()
+                t=threading.Thread(target=gif_sc,daemon=True)
+                t.start()
 
-        def gif_sc():
-            nonlocal start_x,start_y,end_x,end_y
-            if start_x>end_x:
-                start_x,end_x=end_x,start_x
-            if start_y>end_y:
-                start_y,end_y=end_y,start_y
-            gif_list=[]
-            num=0
-            make_folder(os.getcwd()+"/temp1/gif_sc")
-            while end_loop==0:
-                a=time.time()
-                img=ImageGrab.grab(bbox=(start_x, start_y, end_x, end_y)).quantize()
-                img.save(os.getcwd()+"/temp1/gif_sc/"+str(num)+".png")
-                gif_list.append(os.getcwd()+"/temp1/gif_sc/"+str(num)+".png")
-                num+=1
-                b=time.time()
-                time_ab=b-a
-                time_sum=max(float(1/int(entry1.get()))-time_ab,0)
-                time.sleep(time_sum)
-            image_clip = ImageSequenceClip(gif_list, fps=int(entry1.get()))
-            image_clip.write_videofile(os.getcwd()+"/temp1/gif_sc/temp.mp4",codec='libx264', audio=False,logger=None)
-            path=filedialog.asksaveasfilename(title="保存先を選択してください",filetypes=[("GIF","*.gif")],defaultextension=".gif")
-            video_clip = VideoFileClip(os.getcwd()+"/temp1/gif_sc/temp.mp4")
-            video_clip.write_gif(path, fps=int(entry1.get()),logger=None)
-            video_clip.close()
-            image_clip.close()
-            delete_folder(os.getcwd()+"/temp1/gif_sc")
-            messagebox.showinfo("終了","Gifを作成しました")
+            def gif_sc():
+                nonlocal start_x,start_y,end_x,end_y
+                if start_x>end_x:
+                    start_x,end_x=end_x,start_x
+                if start_y>end_y:
+                    start_y,end_y=end_y,start_y
+                gif_list=[]
+                num=0
+                make_folder(os.getcwd()+"/temp1/gif_sc")
+                while end_loop==0:
+                    a=time.time()
+                    img=ImageGrab.grab(bbox=(start_x, start_y, end_x, end_y)).quantize()
+                    img.save(os.getcwd()+"/temp1/gif_sc/"+str(num)+".png")
+                    gif_list.append(os.getcwd()+"/temp1/gif_sc/"+str(num)+".png")
+                    num+=1
+                    b=time.time()
+                    time_ab=b-a
+                    time_sum=max(float(1/int(entry1.get()))-time_ab,0)
+                    time.sleep(time_sum)
+                image_clip = ImageSequenceClip(gif_list, fps=int(entry1.get()))
+                image_clip.write_videofile(os.getcwd()+"/temp1/gif_sc/temp.mp4",codec='libx264', audio=False,logger=None)
+                path=filedialog.asksaveasfilename(title="保存先を選択してください",filetypes=[("GIF","*.gif")],defaultextension=".gif")
+                video_clip = VideoFileClip(os.getcwd()+"/temp1/gif_sc/temp.mp4")
+                video_clip.write_gif(path, fps=int(entry1.get()),logger=None)
+                video_clip.close()
+                image_clip.close()
+                delete_folder(os.getcwd()+"/temp1/gif_sc")
+                messagebox.showinfo("終了","Gifを作成しました")
 
-        start_x=None
-        start_y=None
-        end_x=None
-        end_y=None
-        pil_img=None
-        pil_img1=None
-        canvas_img=None
-        root.update()
-        canvas=Canvas(root1,width=300,height=300,bg="gray")
-        canvas.bind("<ButtonPress-1>", on_press)
-        canvas.bind("<ButtonRelease-1>", on_release)
-        canvas.bind("<B1-Motion>", on_move_press)
-        canvas.pack(expand=True,side=TOP)
-        root.after(10,start)
+            start_x=None
+            start_y=None
+            end_x=None
+            end_y=None
+            pil_img=None
+            pil_img1=None
+            canvas_img=None
+            root.update()
+            canvas=Canvas(root1,width=300,height=300,bg="gray")
+            canvas.bind("<ButtonPress-1>", on_press)
+            canvas.bind("<ButtonRelease-1>", on_release)
+            canvas.bind("<B1-Motion>", on_move_press)
+            canvas.pack(expand=True,side=TOP)
+            root.after(10,start)
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     def end():
         nonlocal end_loop
@@ -8555,7 +8928,6 @@ def metrome():
         if t.is_alive():
             t.join()
         main_frame(n)
-
 
     def metrome1():
         nonlocal t,onoff
@@ -8630,46 +9002,49 @@ def ogp():
     img_url=None
     def handler():
         nonlocal img,img_url
-        clipboard=urllib.parse.quote(clip.paste())
-        url=f"https://kotsukotsu-ogp-api.vercel.app/api/ogp?url={clipboard}"
-        response = requests.get(url)
-        data = response.json()
-        if data.get("image") is None:
-            img_url=""
-        else:
-            img_url=data["image"]
-        if data.get("title") is None:
-            title=""
-        else:
-            title=data["title"]
-        if data.get("description") is None:
-            description=""
-        else:
-            description=data["description"]
+        try:
+            clipboard=urllib.parse.quote(clip.paste())
+            url=f"https://kotsukotsu-ogp-api.vercel.app/api/ogp?url={clipboard}"
+            response = requests.get(url)
+            data = response.json()
+            if data.get("image") is None:
+                img_url=""
+            else:
+                img_url=data["image"]
+            if data.get("title") is None:
+                title=""
+            else:
+                title=data["title"]
+            if data.get("description") is None:
+                description=""
+            else:
+                description=data["description"]
 
-        parsed_url = urlparse(img_url)
-        path = parsed_url.path
-        extension = os.path.splitext(path)[1]
-        file_name=f"temp{extension}"
+            parsed_url = urlparse(img_url)
+            path = parsed_url.path
+            extension = os.path.splitext(path)[1]
+            file_name=f"temp{extension}"
 
-        entry1.insert(0,title)
-        box.insert(1.0,description)
+            entry1.insert(0,title)
+            box.insert(1.0,description)
 
-        if img_url=="":
-            return
-        response = requests.get(img_url)
-        make_folder(os.getcwd()+"/temp1/ogp")
-        with open(os.getcwd()+"/temp1/ogp"+"/"+file_name, 'wb') as f:
-            f.write(response.content)
-        pil=Image.open(os.getcwd()+"/temp1/ogp"+"/"+file_name)
-        img=ImageTk.PhotoImage(pil)
-        w,h=pil.size
+            if img_url=="":
+                return
+            response = requests.get(img_url)
+            make_folder(os.getcwd()+"/temp1/ogp")
+            with open(os.getcwd()+"/temp1/ogp"+"/"+file_name, 'wb') as f:
+                f.write(response.content)
+            pil=Image.open(os.getcwd()+"/temp1/ogp"+"/"+file_name)
+            img=ImageTk.PhotoImage(pil)
+            w,h=pil.size
 
-        canvas.config(width=w,height=h)
-        canvas.canvas_img = img
+            canvas.config(width=w,height=h)
+            canvas.canvas_img = img
 
-        canvas.create_image(w*0.5,h*0.5,image=img)
-        canvas.update()
+            canvas.create_image(w*0.5,h*0.5,image=img)
+            canvas.update()
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     root1=Toplevel()
     root1.attributes("-topmost", True)
@@ -8699,20 +9074,23 @@ def copy_image():
     frame = ttk.Frame(root)
 
     def dnd(drop):
-        path=drop.data.replace("{","").replace("}","").replace("\\","/")
-        original_image = Image.open(path)
-        output = io.BytesIO()
-        make_folder(os.getcwd()+"/temp1/copy_image")
-        original_image.save(os.getcwd()+"/temp1/copy_image/temp.png")
-        original_image1 = Image.open(os.getcwd()+"/temp1/copy_image/temp.png")
-        original_image1.convert('RGB').save(output, 'BMP')
-        data = output.getvalue()[14:]
-        output.close()
-        win32clipboard.OpenClipboard()
-        win32clipboard.EmptyClipboard()
-        win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
-        win32clipboard.CloseClipboard()
-        messagebox.showinfo("完了","クリップボードにコピーしました")
+        try:
+            path=drop.data.replace("{","").replace("}","").replace("\\","/")
+            original_image = Image.open(path)
+            output = io.BytesIO()
+            make_folder(os.getcwd()+"/temp1/copy_image")
+            original_image.save(os.getcwd()+"/temp1/copy_image/temp.png")
+            original_image1 = Image.open(os.getcwd()+"/temp1/copy_image/temp.png")
+            original_image1.convert('RGB').save(output, 'BMP')
+            data = output.getvalue()[14:]
+            output.close()
+            win32clipboard.OpenClipboard()
+            win32clipboard.EmptyClipboard()
+            win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
+            win32clipboard.CloseClipboard()
+            messagebox.showinfo("完了","クリップボードにコピーしました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     label=ttk.Label(frame,text="画像をここに\nドロップしてください",font=("Helvetica", 20))
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -8768,16 +9146,19 @@ def voice_concat():
     frame = ttk.Frame(root, padding=12)
 
     def voice_concat_top():
-        output=filedialog.asksaveasfilename(
-            title = "名前を付けて保存",
-            filetypes = [("MP3", ".mp3"),("WAV", ".wav")],
-            defaultextension = "mp3"
-            )
-        clip1 = AudioFileClip(entry1.get())
-        clip2 = AudioFileClip(entry2.get())
-        clip = concatenate_audioclips([clip1, clip2])
-        clip.write_audiofile(output,logger=None)
-        messagebox.showinfo("終了","結合完了しました")
+        try:
+            output=filedialog.asksaveasfilename(
+                title = "名前を付けて保存",
+                filetypes = [("MP3", ".mp3"),("WAV", ".wav")],
+                defaultextension = "mp3"
+                )
+            clip1 = AudioFileClip(entry1.get())
+            clip2 = AudioFileClip(entry2.get())
+            clip = concatenate_audioclips([clip1, clip2])
+            clip.write_audiofile(output,logger=None)
+            messagebox.showinfo("終了","結合完了しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     def drag_voice1(drop):
         x=drop.data.replace("{","").replace("}","").replace("\\","/")
@@ -9023,17 +9404,20 @@ def pdf_image():
     frame = ttk.Frame(root)
 
     def pdf_image1(drop):
-        file1=drop.data.replace("{","").replace("}","").replace("\\","/")
-        reader=pypdf.PdfReader(file1)
-        path=filedialog.askdirectory(title="保存先を選択してください")
-        for i in range(len(reader.pages)):
-            page=reader.pages[i]
-            count = 0
-            for image_file_object in page.images:
-                with open(path+f"/{i+1}_"+str(count) + image_file_object.name, "wb") as fp:
-                    fp.write(image_file_object.data)
-                    count += 1
-        messagebox.showinfo("完了","画像を保存しました")
+        try:
+            file1=drop.data.replace("{","").replace("}","").replace("\\","/")
+            reader=pypdf.PdfReader(file1)
+            path=filedialog.askdirectory(title="保存先を選択してください")
+            for i in range(len(reader.pages)):
+                page=reader.pages[i]
+                count = 0
+                for image_file_object in page.images:
+                    with open(path+f"/{i+1}_"+str(count) + image_file_object.name, "wb") as fp:
+                        fp.write(image_file_object.data)
+                        count += 1
+            messagebox.showinfo("完了","画像を保存しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     label1=ttk.Label(frame,text="PDFをここに\nドロップしてください",font=("Helvetica", 20))
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -9136,7 +9520,7 @@ def pdf_rotate():
         messagebox.showinfo("完了","回転しました")
 
     label1=ttk.Label(frame,text="PDFをここに\nドロップしてください",font=("Helvetica", 20))
-    label2=ttk.Label(frame,text="回転角度")
+    label2=ttk.Label(frame,text="回転角度(90度間隔)")
     entry1=ttk.Entry(frame,width=10)
     label3=ttk.Label(frame,text="ページ")
     entry2=ttk.Entry(frame,width=10)
@@ -9215,23 +9599,29 @@ def time_calc():
     frame = ttk.Frame(root)
 
     def time_calc1():
-        if combo.get()=="基準年月日から指定日数後の年月日を計算":
-            dt1=datetime.strptime(entry1.get(),'%Y/%m/%d')
-            dt2=timedelta(days=int(entry2.get()))
-            dt3=str((dt1+dt2).strftime("%Y/%m/%d"))
-        elif combo.get()=="基準年月日から指定年月日までの日数を計算":
-            dt1=datetime.strptime(entry1.get(),'%Y/%m/%d')
-            dt2=datetime.strptime(entry2.get(),'%Y/%m/%d')
-            dt3=str(dt1-dt2).split(",")[0].replace("days","日後").replace("day","日後")
-        label3["text"]="結果："+dt3
+        try:
+            if combo.get()=="基準年月日から指定日数後の年月日を計算":
+                dt1=datetime.strptime(entry1.get(),'%Y/%m/%d')
+                dt2=timedelta(days=int(entry2.get()))
+                dt3=str((dt1+dt2).strftime("%Y/%m/%d"))
+            elif combo.get()=="基準年月日から指定年月日までの日数を計算":
+                dt1=datetime.strptime(entry1.get(),'%Y/%m/%d')
+                dt2=datetime.strptime(entry2.get(),'%Y/%m/%d')
+                dt3=str(dt1-dt2).split(",")[0].replace("days","日後").replace("day","日後")
+            label3["text"]="結果："+dt3
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     def on_combobox_select(event):
-        if combo.get()=="基準年月日から指定日数後の年月日を計算":
-            label2["text"]="指定日数(-で前日)"
-        elif combo.get()=="基準年月日から指定年月日までの日数を計算":
-            label2["text"]="指定年月日(年/月/日)"
-        entry2.delete(0,END)
-        label3["text"]="結果："
+        try:
+            if combo.get()=="基準年月日から指定日数後の年月日を計算":
+                label2["text"]="指定日数(-で前日)"
+            elif combo.get()=="基準年月日から指定年月日までの日数を計算":
+                label2["text"]="指定年月日(年/月/日)"
+            entry2.delete(0,END)
+            label3["text"]="結果："
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
@@ -9262,14 +9652,17 @@ def golden_ratio():
     frame = ttk.Frame(root)
 
     def golden_ratio1():
-        if var.get()==0:
-            result=round(int(entry1.get())*1.618033988749894848204586834365,2)
-            entry2.delete(0,END)
-            entry2.insert(0,f"幅：{result} & 高さ：{int(entry1.get())}")
-        elif var.get()==1:
-            result=round(int(entry1.get())/1.618033988749894848204586834365,2)
-            entry2.delete(0,END)
-            entry2.insert(0,f"幅：{int(entry1.get())} & 高さ：{result}")
+        try:
+            if var.get()==0:
+                result=round(int(entry1.get())*1.618033988749894848204586834365,2)
+                entry2.delete(0,END)
+                entry2.insert(0,f"幅：{result} & 高さ：{int(entry1.get())}")
+            elif var.get()==1:
+                result=round(int(entry1.get())/1.618033988749894848204586834365,2)
+                entry2.delete(0,END)
+                entry2.insert(0,f"幅：{int(entry1.get())} & 高さ：{result}")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     var=IntVar()
     var.set(0)
@@ -9360,6 +9753,55 @@ def piano():
     button24.grid(row=0,column=6+7,columnspan=2,sticky=N)
     button25.grid(row=0,column=7+7)
 
+def json_csv():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def json_csv1(drop):
+        files=drop.data.replace("{","").replace("}","").replace("\\","/")
+        file_list=file_mult(files)
+        for x in file_list:
+            try:
+                if var.get()==0:
+                    y=x.replace(".json",".csv")
+                    with open(x, 'r') as f:
+                        json_dict = json.load(f)
+                    with open(y, 'w', newline='') as f:
+                        writer = csv.DictWriter(f, fieldnames=json_dict[0].keys(),
+                                                doublequote=True,
+                                                quoting=csv.QUOTE_ALL)
+                        writer.writeheader()
+                        writer.writerows(json_dict)
+                elif var.get()==1:
+                    y=x.replace(".csv",".json")
+                    with open(x, 'r') as f:
+                        d_reader = csv.DictReader(f)
+                        d_list = [row for row in d_reader]
+                    with open(y, 'w') as f:
+                        json.dump(d_list, f)
+            except:
+                messagebox.showerror("エラー",f"{x}\nでは失敗しました")
+        messagebox.showinfo("完了","終了しました")
+
+
+    var=IntVar()
+    var.set(0)
+    radio1=ttk.Radiobutton(frame,text="JSON→CSV",variable=var,value=0)
+    radio2=ttk.Radiobutton(frame,text="CSV→JSON",variable=var,value=1)
+    label1=ttk.Label(frame,text="ファイルをここに\nドロップしてください",font=("Helvetica", 20))
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+    frame.drop_target_register(DND_FILES)
+    frame.dnd_bind('<<Drop>>',json_csv1)
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    radio1.grid(row=1,column=0)
+    radio2.grid(row=1,column=1)
+    label1.grid(row=2,column=0,columnspan=2)
+
 
 # GUI
 WindowName = "Yuki's army knife"
@@ -9369,6 +9811,11 @@ if 0 != WindowHandle:
     root.withdraw()
     messagebox.showerror("エラー","すでに起動しています")
     sys.exit()
+
+try:
+   ctypes.windll.user32.SetProcessDPIAware()
+except AttributeError:
+    pass
 
 if os.path.exists(os.getcwd()+"/temp1"):
     shutil.rmtree(os.getcwd()+"/temp1", ignore_errors=True)
