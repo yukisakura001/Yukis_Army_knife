@@ -94,6 +94,17 @@ from jeraconv import jeraconv
 import datauri
 from functools import partial
 
+class RightClickMenu(Menu):
+    def __init__(self, master,func, **kwargs): # func = [[label,command],[label,command]...]
+        def showMenu(e):
+            self.post(e.x_root, e.y_root)
+
+        kwargs['tearoff'] = 0
+        Menu.__init__(self, master, **kwargs)
+        master.bind("<Button-3>", showMenu)
+
+        for i in range(len(func)):
+            self.add_command(label=func[i][0], command=func[i][1])
 
 
 class SortTreeview(ttk.Treeview):
@@ -170,6 +181,26 @@ class SortTreeview(ttk.Treeview):
             return int(string.replace(",", ""))
         self._sort(column, reverse, _numcomma_to_num, self._sort_by_numcomma)
 
+    def pack1(self, **kwargs):
+        super().pack(**kwargs)
+
+class ScrolledTree(SortTreeview):
+    def __init__(self, master, **kwargs):
+        self.frame=ttk.Frame(master)
+        super().__init__(self.frame, **kwargs)
+        self.scrollbar = ttk.Scrollbar(self.frame, orient=VERTICAL, command=self.yview)
+        self.configure(yscrollcommand=self.scrollbar.set)
+        self.pack1(side=LEFT, fill=BOTH, expand=True)
+        self.scrollbar.pack(side=LEFT, fill=Y)
+
+    def pack(self, **kwargs):
+        self.frame.pack(**kwargs)
+
+    def grid(self, **kwargs):
+        self.frame.grid(**kwargs)
+
+    def place(self, **kwargs):
+        self.frame.place(**kwargs)
 
 class Free_window(Toplevel):
 
@@ -225,7 +256,7 @@ class Searchbox(ttk.Combobox):
         self.bind('<KeyRelease>', on_combobox_key_release)
         self.bind('<KeyPress>', handle_keypress)
 
-version="5.6"
+version="5.7"
 # メイン画面
 def set_frame1(page_x):
     global frame1,button45,button69,buttonY,button143,combobox_frame
@@ -748,11 +779,17 @@ def set_frame1(page_x):
         text="動画余白",
         command=video_frame
     )
+    #button76=ttk.Button(
+    #    frame_text3,
+    #    width=12,
+    #    text="色コード変換",
+    #    command=color_code
+    #)
     button76=ttk.Button(
-        frame_text3,
+        frame_other3,
         width=12,
-        text="色コード変換",
-        command=color_code
+        text="マスコット化",
+        command=desc_mascot
     )
     button77=ttk.Button(
         frame_text3,
@@ -1222,8 +1259,20 @@ def set_frame1(page_x):
         text="PDF挿入",
         command=pdf_insert
     )
+    button155=ttk.Button(
+        frame_other3,
+        width=12,
+        text="単語帳",
+        command=word_book
+    )
+    button156=ttk.Button(
+        frame_text3,
+        width=12,
+        text="カラー情報",
+        command=color_name
+    )
 
-    kinou=154
+    kinou=156
 
     label_text=Label(frame_text,text="テキスト・情報",bg="green",fg="white")
     label_image=Label(frame_image,text="画像・PDF",bg="#800000",fg="white")
@@ -4273,7 +4322,7 @@ def length_ruler():
         canvas.unbind("<ButtonRelease-1>")
         canvas.unbind("<B1-Motion>")
         root1.destroy()
-        messagebox.showinfo('長さ', f'横幅：{x} px\n 縦幅：{y} px')
+        messagebox.showinfo('長さ', f'横幅：{x} px\n縦幅：{y} px\n斜め：{round(math.sqrt(x**2+y**2),2)} px')
 
     start_x=None
     start_y=None
@@ -5456,12 +5505,21 @@ def decompress():
                     with zipfile.ZipFile(f) as zf:
                         zf.extractall(path=output,pwd=pw.encode('utf-8'))
                 else:
-                    with zipfile.ZipFile(f) as z:
-                        for info in z.infolist():
-                            info.filename = info.orig_filename.encode('cp437').decode('cp932')
-                            if os.sep != "/" and os.sep in info.filename:
-                                info.filename = info.filename.replace(os.sep, "/")
-                            z.extract(info,path=output,pwd=pw.encode('utf-8'))
+                    try:
+                        with zipfile.ZipFile(f) as z:
+                            for info in z.infolist():
+                                info.filename = info.orig_filename.encode('cp437').decode('utf-8')
+                                if os.sep != "/" and os.sep in info.filename:
+                                    info.filename = info.filename.replace(os.sep, "/")
+                                z.extract(info,path=output,pwd=pw.encode('utf-8'))
+                    except:
+                        with zipfile.ZipFile(f) as z:
+                            for info in z.infolist():
+                                info.filename = info.orig_filename.encode('cp437').decode('cp932')
+                                if os.sep != "/" and os.sep in info.filename:
+                                    info.filename = info.filename.replace(os.sep, "/")
+                                z.extract(info,path=output,pwd=pw.encode('utf-8'))
+
             except:
                 messagebox.showerror("エラー","失敗しました")
         messagebox.showinfo("終了","終了しました")
@@ -10134,95 +10192,98 @@ def video_time_image():
     frame = ttk.Frame(root)
 
     def video_time_image1(drop):
-        path=drop.data.replace("{","").replace("}","").replace("\\","/")
-        name=os.path.basename(path)
+        try:
+            path=drop.data.replace("{","").replace("}","").replace("\\","/")
+            name=os.path.basename(path)
 
-        def drawTextRightBottom(image, text) :
-            hmargin = 5
-            color = (0,0,0)
-            thickness   = 1
-            fontFace    = cv2.FONT_HERSHEY_SIMPLEX
-            fontScale   = 0.5
-            image_size = image.shape[:2]
+            def drawTextRightBottom(image, text) :
+                hmargin = 5
+                color = (0,0,0)
+                thickness   = 1
+                fontFace    = cv2.FONT_HERSHEY_SIMPLEX
+                fontScale   = 0.5
+                image_size = image.shape[:2]
 
-            # テキストの描画サイズ取得
-            sz  = cv2.getTextSize(text, fontFace, fontScale, thickness)
+                # テキストの描画サイズ取得
+                sz  = cv2.getTextSize(text, fontFace, fontScale, thickness)
 
-            # テキスト描画位置
-            x = image_size[1] - sz[0][0] - hmargin
-            y = image_size[0] - sz[1]
+                # テキスト描画位置
+                x = image_size[1] - sz[0][0] - hmargin
+                y = image_size[0] - sz[1]
 
-            # 矩形描画位置
-            rx = x
-            ry = image_size[0] - sz[0][1] - sz[1]
+                # 矩形描画位置
+                rx = x
+                ry = image_size[0] - sz[0][1] - sz[1]
 
-            cv2.rectangle(image, (rx, ry), (image_size[1]-1, image_size[0]-1), (255, 255, 255), -1, cv2.LINE_AA)
-            cv2.putText(image, text, (x, y), fontFace, fontScale, color, thickness, cv2.LINE_AA)
+                cv2.rectangle(image, (rx, ry), (image_size[1]-1, image_size[0]-1), (255, 255, 255), -1, cv2.LINE_AA)
+                cv2.putText(image, text, (x, y), fontFace, fontScale, color, thickness, cv2.LINE_AA)
 
-        #cap = cv2.VideoCapture(path)
-        cap = cv2.VideoCapture(u"{path}".format(path=path))
-        if not cap.isOpened():
-            sys.exit()
+            #cap = cv2.VideoCapture(path)
+            cap = cv2.VideoCapture(u"{path}".format(path=path))
+            if not cap.isOpened():
+                sys.exit()
 
-        #動画プロパティ取得
-        v_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))    # 縦の大きさ
-        v_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))   # 横の大きさ
-        fps = cap.get(cv2.CAP_PROP_FPS)                 # フレームレート
-        fcnt =  cap.get(cv2.CAP_PROP_FRAME_COUNT)       # フレーム数
+            #動画プロパティ取得
+            v_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))    # 縦の大きさ
+            v_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))   # 横の大きさ
+            fps = cap.get(cv2.CAP_PROP_FPS)                 # フレームレート
+            fcnt =  cap.get(cv2.CAP_PROP_FRAME_COUNT)       # フレーム数
 
-        div_horizontal = 5  # タイリング横個数
-        div_vertical = 5    # タイリング縦個数
+            div_horizontal = 5  # タイリング横個数
+            div_vertical = 5    # タイリング縦個数
 
-        # 1タイル画像の縮小率
-        sc = min(1 / div_horizontal, 1 / div_vertical)
-        loop_cnt = div_horizontal * div_vertical
-        resimage = np.zeros((v_h, v_w, 3),np.uint8)
-        resize_width = int(v_w * sc)
-        resize_height = int(v_h * sc)
+            # 1タイル画像の縮小率
+            sc = min(1 / div_horizontal, 1 / div_vertical)
+            loop_cnt = div_horizontal * div_vertical
+            resimage = np.zeros((v_h, v_w, 3),np.uint8)
+            resize_width = int(v_w * sc)
+            resize_height = int(v_h * sc)
 
-        for i in range(0, loop_cnt):
-            # フレーム位置算出
-            if i == 0:
-                # 初回
-                fpos = 0
-                fpos2 = int((i+1 * fcnt) / loop_cnt)
-                # 先頭だけ5秒を読み込み
-                fpos1 = int(5.1 * fps)
-                if fpos2 < fpos1 :
-                    fpos = int(fpos2 / 2)
+            for i in range(0, loop_cnt):
+                # フレーム位置算出
+                if i == 0:
+                    # 初回
+                    fpos = 0
+                    fpos2 = int((i+1 * fcnt) / loop_cnt)
+                    # 先頭だけ5秒を読み込み
+                    fpos1 = int(5.1 * fps)
+                    if fpos2 < fpos1 :
+                        fpos = int(fpos2 / 2)
+                    else:
+                        fpos = fpos1
                 else:
-                    fpos = fpos1
-            else:
-                fpos = int(i * fcnt / loop_cnt)
+                    fpos = int(i * fcnt / loop_cnt)
 
-            # フレームシーク 読み出し位置指定
-            cap.set(cv2.CAP_PROP_POS_FRAMES, fpos)
-            ret, frame = cap.read()
+                # フレームシーク 読み出し位置指定
+                cap.set(cv2.CAP_PROP_POS_FRAMES, fpos)
+                ret, frame = cap.read()
 
-            # 画像縮小
-            resize_img = cv2.resize(frame, None, fx=sc, fy=sc, interpolation=cv2.INTER_CUBIC)
+                # 画像縮小
+                resize_img = cv2.resize(frame, None, fx=sc, fy=sc, interpolation=cv2.INTER_CUBIC)
 
-            # 画像の描画位置計算
-            iy = i // div_horizontal
-            ix = i % div_horizontal
-            y = iy * resize_height
-            x = ix * resize_width
+                # 画像の描画位置計算
+                iy = i // div_horizontal
+                ix = i % div_horizontal
+                y = iy * resize_height
+                x = ix * resize_width
 
-            # 画像の時間を右下に描画
-            totalsec = fpos // fps
-            mi = totalsec // 60
-            se = totalsec % 60
-            text = '%3d:%02d' % (mi, se)
-            drawTextRightBottom(resize_img, text)
+                # 画像の時間を右下に描画
+                totalsec = fpos // fps
+                mi = totalsec // 60
+                se = totalsec % 60
+                text = '%3d:%02d' % (mi, se)
+                drawTextRightBottom(resize_img, text)
 
-            # 画像転送
-            resimage[y:y+resize_height, x:x + resize_width, :] = resize_img
+                # 画像転送
+                resimage[y:y+resize_height, x:x + resize_width, :] = resize_img
 
-            # 画像ファイル出力
-            #cv2.imwrite(path.replace(name,"digest.png"), resimage)
-            _, buf = cv2.imencode('*.png', resimage)
-            buf.tofile(path.replace(name,"digest.png"))
-        messagebox.showinfo("完了","終了しました")
+                # 画像ファイル出力
+                #cv2.imwrite(path.replace(name,"digest.png"), resimage)
+                _, buf = cv2.imencode('*.png', resimage)
+                buf.tofile(path.replace(name,"digest.png"))
+            messagebox.showinfo("完了","終了しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
@@ -10251,13 +10312,16 @@ def pdf_insert():
         entry2.insert(0,path)
 
     def pdf_insert1():
-        merger = pypdf.PdfMerger()
-        merger.append(entry1.get())
-        merger.merge(int(entry3.get())-1,entry2.get())
-        pdf_path=filedialog.asksaveasfilename(filetypes=[("PDF","*.pdf")],initialfile="new.pdf")
-        merger.write(pdf_path)
-        merger.close()
-        messagebox.showinfo("完了","終了しました")
+        try:
+            merger = pypdf.PdfMerger()
+            merger.append(entry1.get())
+            merger.merge(int(entry3.get())-1,entry2.get())
+            pdf_path=filedialog.asksaveasfilename(filetypes=[("PDF","*.pdf")],initialfile="new.pdf")
+            merger.write(pdf_path)
+            merger.close()
+            messagebox.showinfo("完了","終了しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
 
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
@@ -10287,6 +10351,228 @@ def pdf_insert():
     label3.grid(row=3,column=0)
     entry3.grid(row=3,column=1)
     button.grid(row=4,column=0,columnspan=2)
+
+def word_book():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def word_book1(drop):
+        try:
+            question_num=0
+            answer_list=[]
+
+            def create_book():
+                nonlocal question_num,answer_list
+
+                def create_result():
+                    nonlocal question_num,answer_list
+                    frame_question.destroy()
+                    result_list=[]
+                    sum_question=0
+                    sum_correct=0
+                    for i in range(len(word_text)):
+                        if answer_list[i]==0:
+                            result_session=[f"{i+1}","◯",f"{word_text[i][0]}",f"{word_text[i][1]}"]
+                            sum_question+=1
+                            sum_correct+=1
+                        elif answer_list[i]==1:
+                            result_session=[f"{i+1}","✕",f"{word_text[i][0]}",f"{word_text[i][1]}"]
+                            sum_question+=1
+                        result_list.append(result_session)
+                    frame_tree=ttk.Frame(root1)
+                    label_sum_question=ttk.Label(root1,text=f"総問題数：{sum_question}\n正解数：{sum_correct}\n正解率：{round(sum_correct/sum_question*100,2)}%",font=("Helvetica", 15),anchor=CENTER)
+                    tree=ScrolledTree(frame_tree,arrRows=result_list,columns=["番号","正誤","問題","答え"],arrColWidth=[50,50,500,500],arrSortType=["num","name","name","name"],height=20)
+
+                    label_sum_question.pack(side=TOP,fill="both")
+                    frame_tree.pack(side=TOP,fill="both", expand=True)
+                    tree.pack(side=LEFT,fill="both", expand=True)
+                    #ysb =ttk.Scrollbar(frame_tree, orient=VERTICAL,command=tree.yview)
+                    #tree.configure(yscrollcommand=ysb.set)
+                    #ysb.pack(side=LEFT, fill=Y)
+
+
+                def next_question(num):
+                    nonlocal question_num,answer_list
+                    if num==0:
+                        answer_list.append(0)
+                        question_num+=1
+                        if question_num==len(word_text):
+                            create_result()
+                            messagebox.showinfo("完了","終了しました")
+                            return
+                    elif num==1:
+                        answer_list.append(1)
+                        question_num+=1
+                        if question_num==len(word_text):
+                            create_result()
+                            messagebox.showinfo("完了","終了しました")
+                            return
+                    label_question["text"]=word_text[question_num][0]
+                    label_question_num["text"]=f"番号：{question_num+1}"
+
+                def answer_open():
+                    if label_question["text"]==word_text[question_num][0]:
+                        label_question["text"]=word_text[question_num][1]
+                        button_answer["text"]="問題を表示"
+                    else:
+                        label_question["text"]=word_text[question_num][0]
+                        button_answer["text"]="答えを表示"
+
+
+                root1=Toplevel()
+                root1.attributes("-topmost", True)
+                root1.title("単語帳")
+                frame_question=ttk.Frame(root1)
+                label_question=ttk.Label(frame_question,text="",font=("Helvetica", 18),width=30,anchor=CENTER,wraplength=300)
+                button_answer=ttk.Button(frame_question,text="答えを表示",command=answer_open)
+                button_correct_answer=Button(frame_question,text="◯",command=lambda:next_question(0),font=("Helvetica", 15))
+                button_wrong_answer=Button(frame_question,text="✕",command=lambda:next_question(1),font=("Helvetica", 15))
+                label_question_num=ttk.Label(frame_question,text=f"番号：1",anchor=CENTER,font=("Helvetica", 15))
+
+                frame_question.pack()
+                label_question.grid(row=3,column=0,columnspan=2)
+                button_answer.grid(row=2,column=0,columnspan=2)
+                button_correct_answer.grid(row=1,column=0)
+                button_wrong_answer.grid(row=1,column=1)
+                label_question_num.grid(row=0,column=0,columnspan=2)
+
+                next_question(2)
+
+
+            path=drop.data.replace("{","").replace("}","").replace("\\","/")
+            word_text=[]
+            with open(path, 'r') as f:
+                reader = csv.reader(f)
+                for line in reader:
+                    if line!=["",""]:
+                        word_text.append(line)
+            if var2.get()==1:
+                random.shuffle(word_text)
+            if var1.get()==1:
+                for i in range(len(word_text)):
+                    word_text[i][0],word_text[i][1]=word_text[i][1],word_text[i][0]
+            create_book()
+        except:
+            messagebox.showerror("エラー","失敗しました")
+
+
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
+    label1=ttk.Label(frame,text="単語帳CSVをここに\nドロップしてください\n(1列目に問題・2列目に答え)",font=("Helvetica", 20))
+    label1.drop_target_register(DND_FILES)
+    label1.dnd_bind('<<Drop>>',word_book1)
+    var1=IntVar()
+    var1.set(0)
+    var2=IntVar()
+    var2.set(0)
+    radio1=ttk.Checkbutton(frame,text="問答入れ替え",variable=var1,onvalue=1,offvalue=0)
+    radio2=ttk.Checkbutton(frame,text="ランダム",variable=var2,onvalue=1,offvalue=0)
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    radio1.grid(row=1,column=0)
+    radio2.grid(row=1,column=1)
+    label1.grid(row=2,column=0,columnspan=2)
+
+def color_name():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def color_name1():
+        root1=Toplevel()
+        url="https://www.thecolorapi.com/id?"
+        if var1.get()==0:
+            url=url+f"rgb={entry1.get()}"
+        elif var1.get()==1:
+            url=url+f"hex={entry1.get()[1:]}"
+        response = requests.get(url)
+        data = response.json()
+        name=data["name"]["value"]
+        hex=data["hex"]["value"]
+        rgb=data["rgb"]["value"]
+        rgb1=rgb.replace("rgb(","").replace(")","")
+        menu=[["名前コピー",lambda:clip.copy(name)],
+              ["HEXコピー",lambda:clip.copy(hex)],
+              ["RGBコピー",lambda:clip.copy(rgb1)],
+              ["標本画像URLコピー",lambda:clip.copy(data["image"]["named"])],
+              ["名前検索",lambda:webbrowser.open(f"https://www.google.com/search?q={name}")],
+              ]
+
+        RightClickMenu(root1,menu)
+
+        label1=ttk.Label(root1,text=f"名前：{name}",font=("Helvetica", 20))
+        label2=ttk.Label(root1,text=f"HEX：{hex}",font=("Helvetica", 20))
+        label3=ttk.Label(root1,text=f"RGB：{rgb}",font=("Helvetica", 20))
+        label4=Label(root1,bg=hex.lower(),height=3,relief="groove")
+
+        label1.pack(expand=True,fill="both")
+        label2.pack(expand=True,fill="both")
+        label3.pack(expand=True,fill="both")
+        label4.pack(expand=True,fill="both")
+
+
+
+    var1=IntVar()
+    var1.set(0)
+    radio1=ttk.Radiobutton(frame,text="RGB(,区切り)",variable=var1,value=0)
+    radio2=ttk.Radiobutton(frame,text="HEX(#~)",variable=var1,value=1)
+    entry1=ttk.Entry(frame,width=40)
+    button1=ttk.Button(frame,text="検索",command=color_name1)
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    radio1.grid(row=1,column=0)
+    radio2.grid(row=1,column=1)
+    entry1.grid(row=2,column=0,columnspan=2)
+    button1.grid(row=3,column=0,columnspan=2)
+
+def desc_mascot():
+    global frame,buttonY
+    frame1.destroy()
+    frame = ttk.Frame(root)
+
+    def desc_mascot1(drop):
+        path=drop.data.replace("{","").replace("}","").replace("\\","/")
+        if os.path.splitext(path)[1]!=".png":
+            messagebox.showerror("エラー","PNGファイルをドロップしてください")
+            return
+        root1=Free_window()
+        root1.move_window(root1)
+        root1.attributes("-topmost", True)
+        root1.title("マスコット")
+        root1.resizable(False, False)
+
+        canvas=Canvas(root1,bd=0, highlightthickness=0)
+        image=ImageTk.PhotoImage(file=path)
+        width=image.width()
+        height=image.height()
+        root1.geometry(f"{width}x{height}")
+        canvas.config(width=width,height=height)
+        canvas.canvas_img = image
+        canvas.create_image(0,0,image=image,anchor=NW)
+        canvas.pack(fill="both")
+        canvas.update()
+        root1.wm_attributes("-transparentcolor", canvas["bg"])
+        root1.overrideredirect(True)
+        RightClickMenu(root1,[["終了",root1.destroy]])
+
+
+    buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
+    label1=ttk.Label(frame,text="マスコットのPNG画像を\nドロップしてください",font=("Helvetica", 20))
+    label1.drop_target_register(DND_FILES)
+    label1.dnd_bind('<<Drop>>',desc_mascot1)
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label1.grid(row=1,column=0,columnspan=2)
 
 
 # GUI
