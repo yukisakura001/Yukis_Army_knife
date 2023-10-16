@@ -93,6 +93,7 @@ import win32clipboard
 from jeraconv import jeraconv
 import datauri
 from functools import partial
+import yaml
 
 class RightClickMenu(Menu):
     def __init__(self, master,func, **kwargs): # func = [[label,command],[label,command]...]
@@ -116,8 +117,11 @@ class SortTreeview(ttk.Treeview):
 
     def __init__(self,master,arrRows,arrColWidth=[],arrColAlignment=[],arrSortType=[],**kwargs):
         kwargs['show'] ="headings"
-        super().__init__(master,**kwargs)
+        self.kwargs=kwargs
+        self.master=master
+        super().__init__(self.master,**kwargs)
         self.arrlbHeader = kwargs["columns"]
+        self.arrRows = arrRows
 
         if arrColWidth==[]:
             self.width=[100 for i in range(len(self.arrlbHeader))]
@@ -137,8 +141,8 @@ class SortTreeview(ttk.Treeview):
             strHdr = self.arrlbHeader[iCount]
             self.heading(strHdr, text=strHdr.title(), sort_by=self.sorttype[iCount])
             self.column(self.arrlbHeader[iCount], width=self.width[iCount], stretch=True, anchor=self.alignment[iCount])
-        for iCount in range(len(arrRows)):
-            self.insert("", "end", values=arrRows[iCount])
+        for iCount in range(len(self.arrRows)):
+            self.insert("", "end", values=self.arrRows[iCount])
 
     def heading(self, column, sort_by=None, **kwargs):
         if sort_by and not hasattr(kwargs, 'command'):
@@ -183,6 +187,18 @@ class SortTreeview(ttk.Treeview):
 
     def pack1(self, **kwargs):
         super().pack(**kwargs)
+
+    def configure_arr(self, arrRows=[[]]):
+        self.arrRows = arrRows
+        for item in self.get_children():
+            self.delete(item)
+
+        for iCount in range(len(self.arrlbHeader)):
+            strHdr = self.arrlbHeader[iCount]
+            self.heading(strHdr, text=strHdr.title(), sort_by=self.sorttype[iCount])
+            self.column(self.arrlbHeader[iCount], width=self.width[iCount], stretch=True, anchor=self.alignment[iCount])
+        for iCount in range(len(self.arrRows)):
+            self.insert("", "end", values=self.arrRows[iCount])
 
 class ScrolledTree(SortTreeview):
     def __init__(self, master, **kwargs):
@@ -256,10 +272,10 @@ class Searchbox(ttk.Combobox):
         self.bind('<KeyRelease>', on_combobox_key_release)
         self.bind('<KeyPress>', handle_keypress)
 
-version="5.7"
+version="5.8"
 # メイン画面
 def set_frame1(page_x):
-    global frame1,button45,button69,buttonY,button143,combobox_frame
+    global frame1,button45,button69,buttonY,button143,combobox_frame,button_function_list,dist_button
     frame1 = ttk.Frame(root)
     root.protocol("WM_DELETE_WINDOW", frame_delete)
     random.seed(None)
@@ -269,9 +285,11 @@ def set_frame1(page_x):
     root.config(menu=men)
     men1=Menu(men,relief=GROOVE,tearoff=0)
     men2=Menu(men,relief=GROOVE,tearoff=0)
+    men3=Menu(men,relief=GROOVE,tearoff=0)
     men.add_cascade(label='メニュー', menu=men1)
     men.add_cascade(label='テーマ変更', menu=men2)
-    men1.add_command(label='スタートアップ登録', command=startup_reg)
+    men.add_cascade(label='設定', menu=men3)
+    men3.add_command(label='スタートアップ登録', command=startup_reg)
     men1.add_command(label='バージョン確認', command=lambda: messagebox.showinfo("バージョン",f"Yuki's Army knife ver{version}"))
     men1.add_command(label='ホームページ', command=lambda: webbrowser.open("https://yukisakura.notion.site/Yuki-s-Army-knife-8b11161af892436a9dd9cfa64724dec9"))
     men1.add_command(label='新規ver確認',command=check_new_ver)
@@ -291,6 +309,9 @@ def set_frame1(page_x):
     men2.add_command(label='クラッシック', command=lambda:set_theme(13))
     men2.add_command(label='モダンダーク', command=lambda:set_theme(14))
     men2.add_command(label='モダンライト', command=lambda:set_theme(15))
+    men3.add_command(label='タスクアイコンに登録', command=button_task_icon)
+    men1.add_command(label='再起動', command=restart)
+    men3.add_command(label='設定フォルダ', command=setting_folder)
 
     notebook = ttk.Notebook(frame1)
     frame_text=ttk.Frame(notebook,name="text")
@@ -1272,6 +1293,7 @@ def set_frame1(page_x):
         command=color_name
     )
 
+
     kinou=156
 
     label_text=Label(frame_text,text="テキスト・情報",bg="green",fg="white")
@@ -1462,11 +1484,87 @@ def set_frame1(page_x):
                 frame_otherN3+=1
 
     combobox_frame['values'] = list_button
+    button_function_list=list_button.copy()
     combobox_frame.bind('<KeyRelease>', on_combobox_key_release)
     combobox_frame.bind("<<ComboboxSelected>>",combo_selected)
 
 
 # 共通機能
+def restart():
+    subprocess.Popen(["Yukis_Army_knife.exe"])
+    root.destroy()
+
+def button_task_icon():
+
+    def click_close():
+
+        messagebox.showinfo(title="終了", message="再起動したあとに\nタスクトレイに表示されます。")
+        root1.destroy()
+
+    def list_delete(event):
+        nonlocal task_setting
+        try:
+            select_num=event.widget.curselection()
+            func_delete_name=listbox.get(select_num[0])
+            func_delete_num=button_function_list.index(func_delete_name)+1
+        except:
+            return
+        res=messagebox.askquestion(title="削除確認", message="この機能をタスクトレイから\n削除しますか？")
+        if res != "yes":
+            return
+        task_setting=task_setting.replace(str(func_delete_num)+"\n","")
+        with open(os.getcwd()+"/config/task_button.txt", "w") as file:
+            file.write(task_setting)
+        var=select_num_get()
+        listbox.config(listvariable=var)
+        listbox.update()
+
+
+    def select_num_get():
+        select_num=[]
+        for i in task_setting.split("\n")[:-1]:
+            select_num.append(button_function_list[int(i)-1])
+        return StringVar(value=select_num)
+
+    def set_task_function(func_name):
+        nonlocal task_setting
+        try:
+            func_num=button_function_list.index(func_name)+1
+            task_setting=task_setting+str(func_num)+"\n"
+            with open(os.getcwd()+"/config/task_button.txt", "w") as file:
+                file.write(task_setting)
+            var=select_num_get()
+            listbox.config(listvariable=var)
+            listbox.update()
+        except:
+            return
+
+
+    if not os.path.exists(os.getcwd()+"/config/task_button.txt"):
+        with open(os.getcwd()+"/config/task_button.txt", "w") as file:
+            file.write("")
+    with open(os.getcwd()+"/config/task_button.txt", "r") as file:
+        task_setting = file.read()
+    root1=Toplevel()
+    root1.title("トレイを設定")
+    root1.attributes("-topmost", True)
+
+    var=select_num_get()
+
+    label1=Label(root1,text="タスクトレイに表示する機能を登録してください。")
+    searchbox=Searchbox(root1,width=30,values=button_function_list)
+    button1=ttk.Button(root1,text="登録",command=lambda:set_task_function(searchbox.get()))
+    listbox=Listbox(root1,width=30,height=10,listvariable=var)
+
+    listbox.bind('<<ListboxSelect>>', list_delete)
+    root1.protocol("WM_DELETE_WINDOW", click_close)
+
+    label1.pack()
+    searchbox.pack()
+    button1.pack()
+    listbox.pack(fill="both",expand=True)
+
+
 def listener_window():
     ctrl=0
     shift=0
@@ -1636,24 +1734,49 @@ def delete_folder(x):
         shutil.rmtree(x)
 
 def taskarea():
+    global icon,task_menu
+
+    def action_func(icon,item):
+        root.deiconify()
+        buttonY.invoke()
+        dist_button[str(item)]()
+
+    if not os.path.exists(os.getcwd()+"/config/task_button.txt"):
+        with open(os.getcwd()+"/config/task_button.txt", "w") as file:
+            file.write("")
+
     img=my_icon.get_img()
     image = Image.open(img)
+    func_list=[]
+    with open(os.getcwd()+"/config/task_button.txt", "r") as file:
+        task_setting = file.read()
+    for num,i in enumerate(task_setting.split("\n")[:-1]):
+        #print(button_function_list[int(i) - 1])
+        item_name = button_function_list[int(i) - 1]
+        func_list.append(pystray.MenuItem(item_name, action=action_func))
+    func_list.append(pystray.MenuItem('ーーーーーーーーーーー',action=None,enabled=False))
+    func_list.append(pystray.MenuItem(text="ウィンドウ表示", action=left_click_action, default=True))
+    func_list.append(pystray.MenuItem(text="ソフトを終了", action=stop_tkinter))
+
+
+    task_menu=pystray.Menu(*func_list)
 
     icon = pystray.Icon(
         name="Yukis_Army_knife",
         icon=image,
         title="Yukis_Army_knife",
-        menu=pystray.Menu(
-            pystray.MenuItem(text="ウィンドウ表示", action=left_click_action, default=True),
-            pystray.MenuItem(text="ソフトを終了", action=stop_tkinter),
-        )
+        menu=task_menu
     )
     icon.run()
-# 左クリックアクションの関数
-def left_click_action(icon, item):
+
+def left_click_action(icon,item):
     global root
     root.deiconify()
     combobox_frame.focus_set()
+
+def setting_folder():
+    subprocess.Popen(["explorer", r"config"], shell=True)
+
 
 # 機能の関数
 
@@ -10575,10 +10698,13 @@ def desc_mascot():
     label1.grid(row=1,column=0,columnspan=2)
 
 
+
 # GUI
+time.sleep(1)
 WindowName = "Yuki's army knife"
 WindowHandle = win32gui.FindWindow(None, WindowName)
 if 0 != WindowHandle:
+
     root=Tk()
     root.withdraw()
     messagebox.showerror("エラー","すでに起動しています")
