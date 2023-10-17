@@ -93,7 +93,8 @@ import win32clipboard
 from jeraconv import jeraconv
 import datauri
 from functools import partial
-import yaml
+#import yaml
+import getpass
 
 class RightClickMenu(Menu):
     def __init__(self, master,func, **kwargs): # func = [[label,command],[label,command]...]
@@ -272,7 +273,7 @@ class Searchbox(ttk.Combobox):
         self.bind('<KeyRelease>', on_combobox_key_release)
         self.bind('<KeyPress>', handle_keypress)
 
-version="5.8"
+version="5.9"
 # メイン画面
 def set_frame1(page_x):
     global frame1,button45,button69,buttonY,button143,combobox_frame,button_function_list,dist_button
@@ -1492,7 +1493,7 @@ def set_frame1(page_x):
 # 共通機能
 def restart():
     subprocess.Popen(["Yukis_Army_knife.exe"])
-    root.destroy()
+    stop_tkinter()
 
 def button_task_icon():
 
@@ -1598,7 +1599,41 @@ def check_new_ver():
     if float(version) < float(response.text.rstrip()):
         res=messagebox.askquestion(title="バージョン確認", message=f"新規バージョン{response.text.rstrip()}があります。ダウンロードしますか？")
         if res == "yes":
-            webbrowser.open("https://www.dropbox.com/scl/fo/frsya7l4zh14z30fpuk0n/h?rlkey=2jncv45l8jhoe7ezls9iqn51v&dl=0")
+            #webbrowser.open("https://www.dropbox.com/scl/fo/frsya7l4zh14z30fpuk0n/h?rlkey=2jncv45l8jhoe7ezls9iqn51v&dl=0")
+            # ユーザー名を取得
+            user_name = getpass.getuser()
+            # フォルダパスを組み立てる
+            folder_path = fr'C:\Users\{user_name}\AppData\Local\Programs\Yukis Army knife'
+            current_directory = os.getcwd()
+            if current_directory == folder_path:
+                def update_soft():
+                    urllib.request.urlretrieve(url, save_path)
+                    subprocess.Popen(save_path)
+                    stop_tkinter()
+
+                # ダウンロードするファイルのURLを指定
+                url = "https://www.dropbox.com/scl/fi/m5ehvw1uhgy3hjdy0gaby/Yukis_Army_knife.exe?rlkey=1dr2ymx64yt2skz8nfaatm0vg&dl=1"
+                # ファイルを保存するフォルダとファイル名を指定
+                make_folder("temp1")
+                save_path = os.getcwd()+"/temp1/Yukis_Army_knife.exe"
+                # URLからファイルをダウンロードして指定したフォルダに保存
+                messagebox.showinfo("情報","ダウンロード中です。")
+                t=threading.Thread(target=update_soft,daemon=True)
+                t.start()
+
+
+            else:
+                def update_soft():
+                    urllib.request.urlretrieve(url, save_path)
+                    messagebox.showinfo("情報","ダウンロードが完了しました。")
+
+                url="https://www.dropbox.com/scl/fi/zxji4x5epgddma25ew48q/Yukis_Army_knife.zip?rlkey=xoqsbfn12hvjbuqv5iq3k8a4w&dl=1"
+                save_path = filedialog.asksaveasfilename(initialdir = os.getcwd(),title = "保存場所を選択",filetypes = [("zipファイル","*.zip")],initialfile="Yukis_Army_knife.zip")
+                t=threading.Thread(target=update_soft,daemon=True)
+                t.start()
+                messagebox.showinfo("情報","ダウンロード中です。")
+
+
     else:
         messagebox.showinfo("情報","最新バージョンです。")
 
