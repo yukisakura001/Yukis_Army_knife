@@ -276,7 +276,7 @@ class Searchbox(ttk.Combobox):
 version="5.9"
 # メイン画面
 def set_frame1(page_x):
-    global frame1,button45,button69,buttonY,button143,combobox_frame,button_function_list,dist_button
+    global frame1,button45,buttonY,button143,combobox_frame,button_function_list,dist_button
     frame1 = ttk.Frame(root)
     root.protocol("WM_DELETE_WINDOW", frame_delete)
     random.seed(None)
@@ -1501,6 +1501,7 @@ def button_task_icon():
 
         messagebox.showinfo(title="終了", message="再起動したあとに\nタスクトレイに表示されます。")
         root1.destroy()
+        #restart()
 
     def list_delete(event):
         nonlocal task_setting
@@ -1806,8 +1807,12 @@ def taskarea():
 
 def left_click_action(icon,item):
     global root
-    root.deiconify()
-    combobox_frame.focus_set()
+    if root.state() == "normal":
+        frame_delete()
+    else:
+        root.deiconify()
+        combobox_frame.focus_set()
+
 
 def setting_folder():
     subprocess.Popen(["explorer", r"config"], shell=True)
@@ -6113,7 +6118,7 @@ def translate_text():
         box1=ScrolledText(root2,width=40,height=20)
         button_2=ttk.Button(root2,text="翻訳",command=trans_2)
         label_2.pack(side=TOP)
-        box1.pack(side=TOP)
+        box1.pack(side=TOP,expand=True,fill=BOTH)
         button_2.pack(side=TOP)
 
     def translate_lang():
@@ -6136,7 +6141,7 @@ def translate_text():
             button_n=ttk.Button(root1,text="コピー",command=lambda:[clip.copy(text1),
                                                                 messagebox.showinfo("完了","コピーしました")])
             label.pack(side=TOP)
-            box.pack(side=TOP)
+            box.pack(side=TOP,expand=True,fill=BOTH)
             button_n.pack(side=TOP)
         except:
             messagebox.showerror("エラー","失敗しました")
@@ -10680,7 +10685,7 @@ def color_name():
     entry1=ttk.Entry(frame,width=40)
     button1=ttk.Button(frame,text="検索",command=color_name1)
     buttonX=ttk.Checkbutton(frame,text="最前面解除",onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
 
     frame.pack()
     buttonX.grid(row=0,column=1)
