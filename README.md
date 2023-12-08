@@ -8,7 +8,7 @@
 
 # 導入方法
 
-[!['サムネイル画像']('https://i9.ytimg.com/vi_webp/JaMv4i3zlFk/maxresdefault.webp?v=654883e2&sqp=CLCjy6sG&rs=AOn4CLDYv9uqGYHEZgx1s0wqR2UmUEikJQ')]('https://youtu.be/JaMv4i3zlFk?si=t3vm1rTJDz3zZ6G5')
+[!['サムネイル画像']('https://github.com/yukisakura001/Yukis_Army_knife/assets/142328718/266fbe53-f186-4f2f-9e37-d0feca8a8ee0')]('https://youtu.be/JaMv4i3zlFk?si=t3vm1rTJDz3zZ6G5')
 
 # 動作環境
 
