@@ -8,7 +8,7 @@
 
 # 導入方法
 
-[!['サムネイル画像']('https://github.com/yukisakura001/Yukis_Army_knife/assets/142328718/266fbe53-f186-4f2f-9e37-d0feca8a8ee0')]('https://youtu.be/JaMv4i3zlFk?si=t3vm1rTJDz3zZ6G5')
+[![タイトル画像](https://img.youtube.com/vi/JaMv4i3zlFk/0.jpg)](https://www.youtube.com/watch?v=JaMv4i3zlFk)
 
 # 動作環境
 
