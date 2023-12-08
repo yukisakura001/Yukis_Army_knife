@@ -6,6 +6,10 @@
 
 コードの書き方やモジュール化などさっぱり理解していないところから始まったため、動けば良いの精神で作られています。そのためコードはかなり汚くて見にくいです
 
+# 導入方法
+
+[!['サムネイル画像']('https://i9.ytimg.com/vi_webp/JaMv4i3zlFk/maxresdefault.webp?v=654883e2&sqp=CLCjy6sG&rs=AOn4CLDYv9uqGYHEZgx1s0wqR2UmUEikJQ')]('https://youtu.be/JaMv4i3zlFk?si=t3vm1rTJDz3zZ6G5')
+
 # 動作環境
 
 windows10及びwindows11でのみ動作
