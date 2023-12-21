@@ -64,7 +64,7 @@ from bs4 import BeautifulSoup
 from moviepy.video.fx.mirror_x import mirror_x
 from moviepy.video.fx.mirror_y import mirror_y
 import ctypes
-from itertools import chain
+#from itertools import chain
 import math
 import string
 import pykakasi
@@ -75,7 +75,7 @@ import Crypto
 from Crypto.Cipher import AES
 from youtube_transcript_api import YouTubeTranscriptApi
 from PIL import ImageGrab
-from urllib.parse import urljoin
+from urllib.parse import urljoin,unquote
 from database import *
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3
@@ -98,6 +98,13 @@ import tkinter.simpledialog as simpledialog
 from chardet import detect
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill
+import mdx_truly_sane_lists
+import markdown
+from tkinterweb import HtmlFrame
+import pillow_heif
+import pyotp
+
+version="6.2"
 
 class RightClickMenu(Menu):
     def __init__(self, master,func, **kwargs): # func = [[label,command],[label,command]...]
@@ -280,7 +287,7 @@ class Searchbox(ttk.Combobox):
         self.bind('<KeyRelease>', on_combobox_key_release)
         self.bind('<KeyPress>', handle_keypress)
 
-version="6.1"
+
 # メイン画面
 def set_frame1(page_x):
     global frame1,button45,buttonY,button143,combobox_frame,button_function_list,dist_button
@@ -1190,7 +1197,7 @@ def set_frame1(page_x):
     button138=ttk.Button(
         frame_text3,
         width=12,
-        text="odsDL変換",
+        text="クラウドDL",
         command=cloud_download
     )
     button139=ttk.Button(
@@ -1343,8 +1350,39 @@ def set_frame1(page_x):
         text="画像→Excel",
         command=image_excel
     )
+    button164=ttk.Button(
+        frame_text2,
+        width=12,
+        text="MD編集",
+        command=markdown_edit
+    )
+    button165=ttk.Button(
+        frame_image3,
+        width=12,
+        text="HEIC変換",
+        command=heic_convert
+    )
+    button166=ttk.Button(
+        frame_other3,
+        width=12,
+        text="ワンタイムパス",
+        command=totp_generator
+    )
+    button167=ttk.Button(
+        frame_video1,
+        width=12,
+        text="等間隔分割",
+        command=video_equally
+    )
+    button168=ttk.Button(
+        frame_video1,
+        width=12,
+        text="動画音声分割",
+        command=video_audio_split
+    )
 
-    kinou=163
+
+    kinou=168
 
     label_text=Label(frame_text,text="テキスト・情報",bg="green",fg="white")
     label_image=Label(frame_image,text="画像・PDF",bg="#800000",fg="white")
@@ -1541,8 +1579,27 @@ def set_frame1(page_x):
     combobox_frame.bind('<KeyRelease>', on_combobox_key_release)
     combobox_frame.bind("<<ComboboxSelected>>",combo_selected)
 
+    def on_mouse_wheel(event):
+        try:
+            # タブインデックスを取得
+            current_tab = notebook.index(notebook.select())
+            # ホイールの方向に応じてタブを移動
+            if event.delta > 0 or event.num == 3:  # ホイール上/左ボタン（Linux）
+                notebook.select(current_tab - 1 if current_tab > 0 else 0)
+            elif event.delta < 0 or event.num == 4:  # ホイール下/右ボタン（Linux）
+                notebook.select(current_tab + 1 if current_tab < notebook.index("end") - 1 else notebook.index("end") - 1)
+        except:
+            pass
+
+    combobox_frame.unbind("<MouseWheel>")
+    root.bind("<MouseWheel>", on_mouse_wheel)
+
+
 
 # 共通機能
+def main_frame_delete():
+    root.unbind("<MouseWheel>")
+    frame1.destroy()
 
 def advanced_setting():
     def adv_setting_update():
@@ -1551,6 +1608,7 @@ def advanced_setting():
         adv_setting["multi_window"]=var3.get()
         adv_setting["auto_update_chack"]=var4.get()
         adv_setting["show_center"]=var5.get()
+        adv_setting["intermediate_screen"]=var6.get()
 
         with open(os.getcwd()+"/config/adv_setting.json", "w") as file:
             json.dump(adv_setting,file)
@@ -1569,6 +1627,8 @@ def advanced_setting():
         adv_setting["auto_update_chack"]=0
     if "show_center" not in adv_setting:
         adv_setting["show_center"]=0
+    if "intermediate_screen" not in adv_setting:
+        adv_setting["intermediate_screen"]=0
 
 
     root1.title("高度な設定")
@@ -1609,11 +1669,16 @@ def advanced_setting():
     label5.grid(row=4,column=0)
     check5.grid(row=4,column=1)
 
-
+    var6=IntVar()
+    var6.set(adv_setting["intermediate_screen"])
+    label6=Label(root1,text="一部機能で中間画面を表示するか：")
+    check6=Checkbutton(root1,variable=var6,onvalue=1,offvalue=0)
+    label6.grid(row=5,column=0)
+    check6.grid(row=5,column=1)
 
 
     button=ttk.Button(root1,text="保存",command=adv_setting_update)
-    button.grid(row=5,column=0,columnspan=2)
+    button.grid(row=6,column=0,columnspan=2)
 
 
 
@@ -1874,7 +1939,7 @@ def set_theme(theme):
 
     s.configure("TNotebook", tabposition='n')
     if frame1.winfo_exists():
-        frame1.destroy()
+        main_frame_delete()
     else:
         frame.destroy()
     set_frame1(0)
@@ -2005,15 +2070,18 @@ def count():
         except:
             return messagebox.showerror("エラー","うまくクリップボードを取得できませんでした。")
 
-    frame1.destroy()
-    frame = ttk.Frame(root, padding=16)
-    button=ttk.Button(frame,text='文字カウント',command=count1,padding=[80,10,80,10])
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
-    frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    button.grid(row=1,column=0,columnspan=2)
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='文字カウント',command=count1,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        count1()
 
 
 def blank():
@@ -2027,21 +2095,24 @@ def blank():
         except:
             messagebox.showerror("エラー","うまくクリップボードを取得できませんでした。")
 
-    frame1.destroy()
-    frame = ttk.Frame(root, padding=16)
-    button=ttk.Button(frame,text='空白削除',command=blank1,padding=[80,10,80,10])
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='空白削除',command=blank1,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
 
-    frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    button.grid(row=1,column=0,columnspan=2)
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        blank1()
 
 
 def tikan():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=16)
 
     def tikan1():
@@ -2073,7 +2144,7 @@ def tikan():
 
 def serch():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
     def serch1(x):
         if x==0:
@@ -2129,7 +2200,7 @@ def IP():
     r = requests.get(url)
     G_ip= re.findall(r'\d+', r.text)
 
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=16)
 
     label1 = ttk.Label(frame, text='ローカルIP：')
@@ -2168,7 +2239,7 @@ def IP():
 
 def timer():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
     output_sec=IntVar()
     output_min=IntVar()
@@ -2275,7 +2346,7 @@ def mini_win():
     global frame,buttonY
     if buttonY["state"] =="normal":
         buttonY.invoke()
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
     buttonY=Button(frame,text="メインメニューに戻る",command=lambda:main_frame(0),font=("Helvetica", 14),bg="purple",fg="white")
     frame.pack()
@@ -2283,7 +2354,7 @@ def mini_win():
 
 def folder():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
     def gr():
         try:
@@ -2327,7 +2398,7 @@ def folder():
 
 def local_pass():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame=ttk.Frame(root, padding=4)
     def dnd(drop):
         clip.copy(drop.data.replace("{","").replace("}","").replace("\\","/"))
@@ -2351,7 +2422,7 @@ def local_pass():
 
 def count_down():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def reset_count():
@@ -2418,7 +2489,7 @@ def count_down():
 
 def choose():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def choose_rurle():
@@ -2457,7 +2528,7 @@ def choose():
 
 def video_dwonload():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def folder():
@@ -2577,7 +2648,7 @@ def video_dwonload():
 
 def image_resize():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def resize(drop):
@@ -2623,7 +2694,7 @@ def image_resize():
 
 def image_change():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def change(drop):
@@ -2691,7 +2762,7 @@ def image_change():
 
 def qr_generate():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def qr_show():
@@ -2747,7 +2818,7 @@ def qr_generate():
 
 def qr_reader():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def qr_read(drop):
@@ -2863,7 +2934,7 @@ def qr_reader():
 
 def face_mosaic():
         global frame,buttonY
-        frame1.destroy()
+        main_frame_delete()
         frame = ttk.Frame(root, padding=12)
 
         def dl_xml(save_path):
@@ -2934,7 +3005,7 @@ def face_mosaic():
 
 def img_rotate():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def img_rotate1(drop):
@@ -2970,7 +3041,7 @@ def img_rotate():
 
 def img_gray():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def img_gray1(drop):
@@ -3006,7 +3077,7 @@ def img_gray():
 
 def video_cut():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def video_cut1(drop):
@@ -3055,7 +3126,7 @@ def video_cut():
 
 def img_triming():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
     origin=None
 
@@ -3158,7 +3229,7 @@ def img_triming():
 
 def img_press():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def change_ratio():
@@ -3234,7 +3305,7 @@ def img_press():
 
 def mouse_click():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def main_frame1():
@@ -3326,7 +3397,7 @@ def mouse_click():
 
 def video_to_voice():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
     def video_to_voice1(drop):
         file=drop.data.replace("{","").replace("}","").replace("\\","/")
@@ -3356,7 +3427,7 @@ def video_to_voice():
 
 def pdf_split():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
     frame_1=ttk.Frame(frame)
     frame_2=ttk.Frame(frame)
@@ -3440,7 +3511,7 @@ def pdf_split():
 
 def pdf_merge():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def pdf_merge1(drop):
@@ -3485,7 +3556,7 @@ def pdf_merge():
 
 def red_sheet():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def rgb_to_hex():
@@ -3543,7 +3614,7 @@ def red_sheet():
 def speed_check():
     global frame,buttonY
 
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def speed_check1():
@@ -3577,7 +3648,7 @@ def speed_check():
 
 def exif():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def get_exif(fname):
@@ -3679,28 +3750,152 @@ def exif():
     label.grid(row=1,column=0)
 
 def memo():
-    def insert_bullet_point(event):
-        cursor_row, _= map(int, box.index(INSERT).split('.'))
-        line_text = box.get(f'{cursor_row}.0', f'{cursor_row}.end-1c')
-        # 自動挿入
-        if line_text.startswith('* ') and len(line_text) != 1:
-            next_row = cursor_row + 1
-            box.insert(f'{cursor_row}.end', '\n* ')
-            box.mark_set("insert", f'{next_row}.2')
+    def on_key_press(event):
+        index = text.index("insert").split('.')
+        line_number = int(index[0])
+        current_line = text.get(f"{line_number}.0", f"{line_number}.end")
+        cursor_pos = text.index(INSERT)
+        line_end = cursor_pos.split('.')[0] + '.end'
+        text_after_cursor = text.get(cursor_pos, line_end)
+
+        if event.keysym == 'Return':
+            stripped_line = current_line.lstrip()
+            list_match = re.match(r'(\s*)(\d+)\.\s*(.*)', current_line)
+            hyphen_list_match = re.match(r'(\s*)-\s+.*', current_line)  # ハイフンとスペースの組み合わせのマッチング
+            asterisk_list_match = re.match(r'(\s*)\*\s+.*', current_line)  # アスタリスクとスペースの組み合わせのマッチング
+
+            if hyphen_list_match or asterisk_list_match:  # ハイフンまたはアスタリスクとスペースで始まる場合
+                process_list_item(line_number, stripped_line, current_line,text_after_cursor)
+                text.delete(cursor_pos, line_end)
+                text.mark_set(INSERT, f"{int(cursor_pos.split('.')[0])+1}.end")
+                update_numbered_list(line_number + 1)  # 番号付きリストの更新
+                return "break"
+            elif list_match:
+                process_numbered_list_item(line_number, list_match,text_after_cursor)
+                text.delete(cursor_pos, line_end)
+                text.mark_set(INSERT, f"{int(cursor_pos.split('.')[0])+1}.end")
+                update_numbered_list(line_number + 1)  # 番号付きリストの更新
+                return "break"
+
+        elif event.keysym == 'Tab':
+            adjust_indent(line_number, current_line, event.state & 0x0001)
             return "break"
-        elif line_text.startswith('*') and len(line_text) == 1:
-            box.delete(f'{cursor_row}.0', f'{cursor_row}.end')
-            return "break"
-        elif re.match(r'^\d+\.', line_text) and re.fullmatch(r'^\d+\..+', line_text):
-            num=int(re.findall('^[0-9]+', line_text)[0])
-            matches = re.finditer('^[0-9]+', line_text)
-            match_num = [match.start() for match in matches][0]+len(str(num+1))+2
-            box.insert(f'{cursor_row}.end', f'\n{num+1}. ')
-            box.mark_set("insert", f'{cursor_row + 1}.{match_num}')
-            return "break"
-        elif re.match(r'^\d+\.', line_text) and re.fullmatch(r'^\d+\.', line_text):
-            box.delete(f'{cursor_row}.0', f'{cursor_row}.end')
-            return "break"
+
+    def process_list_item(line_number, stripped_line, current_line,text_after_cursor):
+        if stripped_line in ('-', '- ', '*', '* '):  # '*' を追加
+            text.delete(f"{line_number}.0", f"{line_number}.end")
+        else:
+            indent = len(current_line) - len(stripped_line)
+            new_bullet = '*' if stripped_line.startswith('*') else '-'  # 新しいバレットを決定
+            text.insert(f"{line_number}.end", '\n' + ' ' * indent + new_bullet + ' '+text_after_cursor)
+
+    def process_numbered_list_item(line_number, match,text_after_cursor):
+        indent, number, content = match.groups()
+        if not content:
+            text.delete(f"{line_number}.0", f"{line_number}.end")
+        else:
+            next_number = int(number) + 1
+            text.insert(f"{line_number}.end", '\n' + indent + f"{next_number}. "+text_after_cursor)
+
+    def adjust_indent(line_number, current_line, is_shift_pressed):
+        indent_match = re.match(r'(\s*)(\-|\*|\d+\.)', current_line)  # '*' を追加
+        if indent_match:
+            indent, list_type = indent_match.groups()
+            if list_type in ('-', '*'):  # '*' を追加
+                new_indent = "  " + indent if not is_shift_pressed else indent[2:]
+                text.delete(f"{line_number}.0", f"{line_number}.{len(indent)}")
+                text.insert(f"{line_number}.0", new_indent)
+            else:
+                # 番号付きリストの場合
+                new_indent = "  " + indent if not is_shift_pressed else indent[2:]
+                reset_list_number(line_number, new_indent, is_decreasing_indent=is_shift_pressed)
+        update_numbered_list(line_number)
+
+
+    def reset_list_number(line_number, new_indent, is_decreasing_indent):
+        current_line = text.get(f"{line_number}.0", f"{line_number}.end")
+        match = re.match(r'(\s*)(\d+)\.', current_line)
+        if match:
+            if is_decreasing_indent:
+                new_number = str(get_previous_number_same_level(line_number, new_indent))
+            else:
+                new_number = str(get_next_list_number_same_level(line_number, new_indent))
+            replacement = f"{new_indent}{new_number}."
+            text.replace(f"{line_number}.0", f"{line_number}.{len(match.group(0))}", replacement)
+
+
+    def get_next_list_number_same_level(line_number, indent):
+        next_line_number = line_number - 1
+        while next_line_number > 0:
+            line = text.get(f"{next_line_number}.0", f"{next_line_number}.end")
+            match = re.match(r'(\s*)(\d+)\.', line)
+            if match and match.group(1) == indent:
+                return int(match.group(2)) + 1
+            elif match and len(match.group(1)) < len(indent):
+                # 異なるネストが存在する
+                break
+            next_line_number -= 1
+        return 1
+
+    def get_previous_number_same_level(line_number, indent):
+        prev_line_number = line_number - 1
+        while prev_line_number > 0:
+            line = text.get(f"{prev_line_number}.0", f"{prev_line_number}.end")
+            match = re.match(r'(\s*)(\d+)\.', line)
+            if match:
+                if match.group(1) == indent:
+                    return int(match.group(2)) + 1
+                elif len(match.group(1)) < len(indent):
+                    break  # 間に異なるネストが存在する
+            prev_line_number -= 1
+        return 1
+
+    def update_numbered_list(changed_line_number):
+        start_line = find_list_start(changed_line_number)
+        line_number = start_line
+        last_line_number = int(text.index('end-1c').split('.')[0])
+
+        # 各レベルの番号を保持する辞書
+        level_numbers = {}
+
+        while line_number <= last_line_number:
+            line = text.get(f"{line_number}.0", f"{line_number}.end")
+            indent_level = get_indent_level(line)
+
+            if is_numbered_list_item(line):
+                # 同じレベルの以前の番号を取得し、それを1増やす
+                number = level_numbers.get(indent_level, 0) + 1
+                level_numbers[indent_level] = number
+
+                # より深いレベルの番号をリセット
+                for level in list(level_numbers.keys()):
+                    if level > indent_level:
+                        del level_numbers[level]
+
+                new_line = re.sub(r'\d+\.', f"{number}.", line)
+                text.replace(f"{line_number}.0", f"{line_number}.end", new_line)
+
+            elif line.strip() == '':
+                break  # 空の行でリスト終了とみなす
+
+            line_number += 1
+
+    def is_numbered_list_item(line):
+        # 番号付きリストアイテムかどうかを判断
+        return bool(re.match(r'\s*\d+\.', line))
+
+    def find_list_start(line_number):
+        # リストの開始行を見つける
+        while line_number > 0:
+            line = text.get(f"{line_number}.0", f"{line_number}.end")
+            if not is_numbered_list_item(line) or line.strip() == '':
+                break
+            line_number -= 1
+        return line_number + 1
+
+    def get_indent_level(line):
+        indent_match = re.match(r'(\s*)', line)
+        return len(indent_match.group(1)) if indent_match else 0
 
 
     def save_text():
@@ -3711,7 +3906,7 @@ def memo():
             )
         if filename != "":
             with open(filename, "w") as f:
-                f.write(box.get("1.0", "end-1c"))
+                f.write(text.get("1.0", "end-1c"))
             messagebox.showinfo("完了","保存しました")
 
     root1 = Free_window()
@@ -3720,19 +3915,22 @@ def memo():
     root1.config(menu=menu)
     men1=Menu(menu,tearoff = False)
     menu.add_cascade(label="ファイル",menu=men1)
-    men1.add_command(label="中身をコピー",command=lambda:clip.copy(box.get("0.0",END).rstrip('\n')))
+    men1.add_command(label="中身をコピー",command=lambda:clip.copy(text.get("0.0",END).rstrip('\n')))
     men1.add_command(label="名前をつけて保存",command=save_text)
 
     frame_1=ttk.Frame(root1,padding=1)
-    box=ScrolledText(root1,width=40,height=12,undo=True)
-    box.bind('<Return>', insert_bullet_point)
+    text=ScrolledText(root1,width=40,height=12,undo=True)
+    #text.bind('<Return>', insert_bullet_point)
+
     frame_1.pack()
-    box.pack(expand=True,fill="both",side=TOP)
+    text.pack(expand=True,fill="both",side=TOP)
     root1.attributes('-topmost', True)
+    text.bind('<KeyPress-Return>', on_key_press)
+    text.bind('<KeyPress-Tab>', on_key_press)
 
 def video_to_gif():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def video_gif(drop):
@@ -3769,7 +3967,7 @@ def video_to_gif():
 
 def svg_con():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def svg(drop):
@@ -3806,7 +4004,7 @@ def svg_con():
 
 def img_inv():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def inv(drop):
@@ -3850,7 +4048,7 @@ def img_inv():
 
 def front_window():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def on_release(key):
@@ -4044,15 +4242,18 @@ def screen_memo():
         frame1.pack()
         canvas.pack(expand=True,fill=BOTH)
 
-    frame1.destroy()
-    frame = ttk.Frame(root, padding=16)
-    button=ttk.Button(frame,text='画像付箋作成',command=screen_memo1,padding=[80,10,80,10])
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
-    frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    button.grid(row=1,column=0,columnspan=2)
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='画像付箋作成',command=screen_memo1,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        screen_memo1()
 
 def short_url():
     global frame,buttonY
@@ -4067,19 +4268,22 @@ def short_url():
         else:
             messagebox.showerror('エラー', '短縮URLを取得できませんでした')
 
-    frame1.destroy()
-    frame = ttk.Frame(root, padding=16)
-    button=ttk.Button(frame,text='短縮URL',command=short_url1,padding=[80,10,80,10])
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
-    frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    button.grid(row=1,column=0,columnspan=2)
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='短縮URL',command=short_url1,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        short_url1()
 
 def window_path():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def stopping():
@@ -4140,52 +4344,131 @@ def window_path():
 
 def icon_image():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
-    def exe_drop(drop):
-        try:
-            y=drop.data.replace("{","").replace("}","").replace("\\","/")
-            extract_icon_from_exe(y)
-            messagebox.showinfo('完了', 'アイコンを抽出しました')
-        except:
-            messagebox.showerror('エラー', 'アイコンを抽出できませんでした')
+    class SHFILEINFO(ctypes.Structure):
+        _fields_ = [("hIcon", ctypes.wintypes.HICON),
+                    ("iIcon", ctypes.c_int),
+                    ("dwAttributes", ctypes.c_ulong),
+                    ("szDisplayName", ctypes.wintypes.WCHAR * 260),
+                    ("szTypeName", ctypes.wintypes.WCHAR * 80)]
 
-    def extract_icon_from_exe(exe_path, icon_index=0):
-        # アイコンの大きさ
-        icon_size = win32api.GetSystemMetrics(win32con.SM_CXICON), win32api.GetSystemMetrics(win32con.SM_CYICON)
-        # アイコン抽出
-        large, small = win32gui.ExtractIconEx(exe_path, icon_index)
-        # 大きいアイコン
-        x=filedialog.asksaveasfilename(
-        title = "名前を付けて保存",
-        filetypes = [("PNG", ".png")],
-        defaultextension = "png",
-        initialfile = "icon"
+    SHGFI_ICON = 0x000000100
+    SHGFI_USEFILEATTRIBUTES = 0x000000010
+    FILE_ATTRIBUTE_NORMAL = 0x00000080
+
+    shell32 = ctypes.WinDLL('shell32')
+    shell32.SHGetFileInfoW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD, ctypes.POINTER(SHFILEINFO), ctypes.wintypes.UINT, ctypes.wintypes.UINT]
+    shell32.SHGetFileInfoW.restype = ctypes.wintypes.HANDLE
+
+    def get_folder_icon(folder_path):
+        shinfo = SHFILEINFO()
+        retval = shell32.SHGetFileInfoW(
+            folder_path, 0, ctypes.byref(shinfo),
+            ctypes.sizeof(shinfo), SHGFI_ICON
         )
-        if large:
-            # Bitmapオブジェクト
-            hdc = win32ui.CreateDCFromHandle(win32gui.GetDC(0))
-            hbmp = win32ui.CreateBitmap()
-            hbmp.CreateCompatibleBitmap(hdc, icon_size[0], icon_size[1])
-            hdc = hdc.CreateCompatibleDC()
-            hdc.SelectObject(hbmp)
-            hdc.DrawIcon((0, 0), large[0])
-            hdc.DeleteDC()
-            # PILのImageオブジェクトに変換
-            bmpinfo = hbmp.GetInfo()
-            bmpstr = hbmp.GetBitmapBits(True)
-            icon_image = Image.frombuffer(
-                'RGBA',
-                (bmpinfo['bmWidth'], bmpinfo['bmHeight']),
-                bmpstr, 'raw', 'BGRA', 0, 1
-            )
-            icon_image.save(x, "PNG")
-        # リソース解放
-        if small:
-            win32gui.DestroyIcon(small[0])
-        if large:
-            win32gui.DestroyIcon(large[0])
+        if retval:
+            return shinfo.hIcon
+        else:
+            return None
+
+    def get_icon(ext):
+        shinfo = SHFILEINFO()
+        retval = shell32.SHGetFileInfoW(
+            ext, FILE_ATTRIBUTE_NORMAL, ctypes.byref(shinfo),
+            ctypes.sizeof(shinfo), SHGFI_ICON | SHGFI_USEFILEATTRIBUTES
+        )
+        if retval:
+            return shinfo.hIcon
+        else:
+            return None
+
+    def icon_to_image(icon, size=(32, 32)):
+        hdc = ctypes.windll.user32.GetDC(0)
+        hbmp = ctypes.windll.gdi32.CreateCompatibleBitmap(hdc, size[0], size[1])
+
+        hmemdc = ctypes.windll.gdi32.CreateCompatibleDC(hdc)
+        ctypes.windll.gdi32.SelectObject(hmemdc, hbmp)
+        ctypes.windll.user32.DrawIconEx(hmemdc, 0, 0, icon, size[0], size[1], 0, None, 0x0003)
+        ctypes.windll.user32.DestroyIcon(icon)
+        ctypes.windll.gdi32.DeleteDC(hmemdc)
+
+        bitmap_bits = ctypes.create_string_buffer(size[0] * size[1] * 4)
+
+        # GetBitmapBitsを呼び出してバッファにビットを格納
+        ctypes.windll.gdi32.GetBitmapBits(hbmp, ctypes.sizeof(bitmap_bits), bitmap_bits)
+
+        # PILで画像を作成
+        image = Image.frombuffer(
+            'RGBA',
+            size,
+            bitmap_bits,
+            'raw',
+            'BGRA',
+            0,
+            1
+        )
+        ctypes.windll.gdi32.DeleteObject(hbmp)
+        ctypes.windll.user32.ReleaseDC(0, hdc)
+        return image
+
+
+    def exe_drop(drop):
+        #try:
+            y=drop.data.replace("{","").replace("}","").replace("\\","/")
+            folder_name=os.path.dirname(y)
+            name=os.path.splitext(os.path.basename(y))[0]
+            if os.path.isdir(y):
+                icon=get_folder_icon("")
+            else:
+                icon = get_icon(y) #""でドライブアイコン
+            if icon:
+                img = icon_to_image(icon)
+                img.save(f"{folder_name}/{name}.png")
+                messagebox.showinfo('完了', 'アイコンを抽出しました')
+            else:
+                messagebox.showerror('エラー', 'アイコンを抽出できませんでした')
+
+        #except:
+        #    messagebox.showerror('エラー', 'エラーが発生しました')
+
+
+    #def extract_icon_from_exe(exe_path, icon_index=0):
+    #    # アイコンの大きさ
+    #    icon_size = win32api.GetSystemMetrics(win32con.SM_CXICON), win32api.GetSystemMetrics(win32con.SM_CYICON)
+    #    # アイコン抽出
+    #    large, small = win32gui.ExtractIconEx(exe_path, icon_index)
+    #    # 大きいアイコン
+    #    x=filedialog.asksaveasfilename(
+    #    title = "名前を付けて保存",
+    #    filetypes = [("PNG", ".png")],
+    #    defaultextension = "png",
+    #    initialfile = "icon"
+    #    )
+    #    if large:
+    #        # Bitmapオブジェクト
+    #        hdc = win32ui.CreateDCFromHandle(win32gui.GetDC(0))
+    #        hbmp = win32ui.CreateBitmap()
+    #        hbmp.CreateCompatibleBitmap(hdc, icon_size[0], icon_size[1])
+    #        hdc = hdc.CreateCompatibleDC()
+    #        hdc.SelectObject(hbmp)
+    #        hdc.DrawIcon((0, 0), large[0])
+    #        hdc.DeleteDC()
+    #        # PILのImageオブジェクトに変換
+    #        bmpinfo = hbmp.GetInfo()
+    #        bmpstr = hbmp.GetBitmapBits(True)
+    #        icon_image = Image.frombuffer(
+    #            'RGBA',
+    #            (bmpinfo['bmWidth'], bmpinfo['bmHeight']),
+    #            bmpstr, 'raw', 'BGRA', 0, 1
+    #        )
+    #        icon_image.save(x, "PNG")
+    #    # リソース解放
+    #    if small:
+    #        win32gui.DestroyIcon(small[0])
+    #    if large:
+    #        win32gui.DestroyIcon(large[0])
 
     buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
@@ -4200,7 +4483,7 @@ def icon_image():
 
 def sleep_stop():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def main_frame1(x):
@@ -4242,7 +4525,7 @@ def sleep_stop():
 
 def txt_get():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def txt_get1(drop):
@@ -4269,7 +4552,7 @@ def txt_get():
 
 def voice_cut():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def clip(drop):
@@ -4485,7 +4768,7 @@ def clock():
 
 def num_change():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def change1():
@@ -4558,7 +4841,7 @@ def num_change():
 
 def sum_paste():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def clipboard_scan():
@@ -4759,7 +5042,7 @@ def length_ruler():
         frame1.pack()
         canvas.pack(expand=True,fill=BOTH)
 
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=16)
     button=ttk.Button(frame,text='長さ測定',command=length_ruler1,padding=[80,10,80,10])
     buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -4771,7 +5054,7 @@ def length_ruler():
 
 def voice_read():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
 
@@ -4826,7 +5109,7 @@ def voice_read():
 
 def password():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def get_string(num):
@@ -5001,7 +5284,7 @@ def color_bullet():
 
 def file_day():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def dnd(drop):
@@ -5042,7 +5325,7 @@ def file_day():
 
 def mp3_wav():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def mp3_wav1(drop):
@@ -5074,7 +5357,7 @@ def mp3_wav():
 
 def pc_info():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def main_frame1(n):
@@ -5112,7 +5395,7 @@ def pc_info():
 
 def gif_create():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
     def add_img(drop):
         files=drop.data.replace("{","").replace("}","").replace("\\","/")
@@ -5160,7 +5443,7 @@ def gif_create():
 
 def img_blank():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def add_margin(drop):
@@ -5214,7 +5497,7 @@ def img_blank():
 
 def image_set():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def img_set(drop):
@@ -5270,7 +5553,7 @@ def image_set():
 
 def img_gamma():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def has_alpha_channel(img):
@@ -5319,7 +5602,7 @@ def img_gamma():
 
 def area_mozaic():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
     origin=None
     x=None
@@ -5441,7 +5724,7 @@ def area_mozaic():
 
 def translate():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def check(x):
@@ -5549,7 +5832,7 @@ def translate():
 
 def video_volume():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def video_top(drop):
@@ -5601,7 +5884,7 @@ def video_volume():
 
 def video_speed():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def video_top(drop):
@@ -5652,7 +5935,7 @@ def video_speed():
 
 def video_shot():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def video_top(drop):
@@ -5690,7 +5973,7 @@ def video_shot():
 
 def video_info():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def video_info_top(drop):
@@ -5716,7 +5999,7 @@ def video_info():
 
 def md2html():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
     def md2html_top(drop):
         def convert_markdown_to_html(markdown_file, html_file):
@@ -5748,7 +6031,7 @@ def md2html():
 
 def video_concat():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def video_concat_top():
@@ -5804,7 +6087,7 @@ def video_concat():
 
 def voice2video():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def create_movie_with_sound(img_path, audio_path, movie_out_path):
@@ -5861,7 +6144,7 @@ def voice2video():
 
 def compress():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def text_top(drop):
@@ -5910,7 +6193,7 @@ def compress():
 
 def decompress():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def top(drop):
@@ -5967,7 +6250,7 @@ def decompress():
 
 def image_info():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def top(drop):
@@ -6007,7 +6290,7 @@ def image_info():
 
 def window_toumei():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def stopping():
@@ -6072,7 +6355,7 @@ def window_toumei():
 
 def url_change():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def url_change2():
@@ -6105,7 +6388,7 @@ def url_change():
 
 def voice2read():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def top(drop):
@@ -6143,7 +6426,7 @@ def voice2read():
 
 def video_size():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def top(drop):
@@ -6181,7 +6464,7 @@ def video_size():
 
 def video_BW():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def top(drop):
@@ -6211,7 +6494,7 @@ def video_BW():
 
 def video_light():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def top(drop):
@@ -6251,7 +6534,7 @@ def video_light():
 
 def video_frame():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def convert_color_code_to_rgb(color_code):
@@ -6298,7 +6581,7 @@ def video_frame():
 
 def color_code():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def color_change():
@@ -6365,7 +6648,7 @@ def color_code():
 
 def translate_text():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def translate_text2():
@@ -6440,7 +6723,7 @@ def translate_text():
 
 def pass_check():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def check_password(password):
@@ -6480,7 +6763,7 @@ def pass_check():
 
 def voice_delete():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def top(drop):
@@ -6556,16 +6839,18 @@ def site_title():
         clip.copy(x)
         messagebox.showinfo("取得","コピーしました")
 
-
-    frame1.destroy()
-    frame = ttk.Frame(root, padding=16)
-    button=ttk.Button(frame,text='サイトタイトル',command=url_title,padding=[80,10,80,10])
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
-    frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    button.grid(row=1,column=0,columnspan=2)
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='サイトタイトル',command=url_title,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        url_title()
 
 def network_monitor():
     root1=Toplevel()
@@ -6759,7 +7044,7 @@ def network_monitor():
 
 def n_del():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def n_del1():
@@ -6793,7 +7078,7 @@ def n_del():
 
 def image_mirror():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def top(drop):
@@ -6823,7 +7108,7 @@ def image_mirror():
 
 def video_mirror():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def top(drop):
@@ -6863,7 +7148,7 @@ def video_mirror():
 
 def plain_paste():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
     thread_stop=0
 
@@ -6897,7 +7182,7 @@ def plain_paste():
 
 def power_control():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def turn_off_display():
@@ -6911,11 +7196,11 @@ def power_control():
         ctypes.windll.user32.SendMessageW(hwnd, WM_SYSCOMMAND, SC_MONITORPOWER, MONITOR_OFF)
 
 
-    button1=ttk.Button(frame,text="画面を消す",command=turn_off_display)
-    button2=ttk.Button(frame,text="スリープ",command=lambda:ctypes.windll.PowrProf.SetSuspendState(0, 1, 0))
-    button3=ttk.Button(frame,text="休止状態",command=lambda:ctypes.windll.PowrProf.SetSuspendState(1, 1, 0))
-    button4=ttk.Button(frame,text="シャットダウン",command=lambda:os.system("shutdown /s /t 0"))
-    button5=ttk.Button(frame,text="再起動",command=lambda:os.system("shutdown /r /t 0"))
+    button1=ttk.Button(frame,text="画面を消す",command=turn_off_display,width=12)
+    button2=ttk.Button(frame,text="スリープ",width=12,command=lambda:ctypes.windll.PowrProf.SetSuspendState(0, 1, 0))
+    button3=ttk.Button(frame,text="休止状態",width=12,command=lambda:ctypes.windll.PowrProf.SetSuspendState(1, 1, 0))
+    button4=ttk.Button(frame,text="シャットダウン",width=12,command=lambda:os.system("shutdown /s /t 0"))
+    button5=ttk.Button(frame,text="再起動",width=12,command=lambda:os.system("shutdown /r /t 0"))
     buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
 
@@ -6930,7 +7215,7 @@ def power_control():
 
 def sort_list():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def sort_list1():
@@ -6965,7 +7250,7 @@ def sort_list():
 
 def pdf_pass():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def change_password(src_path, dst_path, src_password):
@@ -7007,7 +7292,7 @@ def pdf_pass():
 
 def bmi():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def bmi1():
@@ -7075,7 +7360,7 @@ def bmi():
 
 def net_info():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def is_url(string):
@@ -7167,7 +7452,7 @@ def net_info():
 
 def gif_split():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def gif_to_images(gif_path, output_path):
@@ -7201,7 +7486,7 @@ def gif_split():
 
 def trapezoid():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
     origin=None
     x=None
@@ -7371,7 +7656,7 @@ def trapezoid():
 
 def shadow_delete():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def top(drop):
@@ -7414,7 +7699,7 @@ def shadow_delete():
 
 def video_convert():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def top(drop):
@@ -7456,7 +7741,7 @@ def video_convert():
 
 def video_fps():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def top(drop):
@@ -7491,7 +7776,7 @@ def video_fps():
 
 def video_bgm():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def top1(drop):
@@ -7536,7 +7821,7 @@ def video_bgm():
 
 def duplication():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def duplication1():
@@ -7565,7 +7850,7 @@ def duplication():
 
 def video_thumbnail():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def download_image(url, file_name):
@@ -7617,7 +7902,7 @@ def video_thumbnail():
 
 def address_english():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def address_english1():
@@ -7795,19 +8080,22 @@ def input_stop():
         root1.protocol("WM_DELETE_WINDOW", click_close)
         root1.bind('<Button-2>', middleClick)
 
-    frame1.destroy()
-    frame = ttk.Frame(root, padding=16)
-    button=ttk.Button(frame,text='入力停止開始',command=input_stop1,padding=[80,10,80,10])
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
-    frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    button.grid(row=1,column=0,columnspan=2)
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='入力停止開始',command=input_stop1,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        input_stop1()
 
 def renban_list():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def renban_list1():
@@ -7932,7 +8220,7 @@ def renban_list():
 
 def web_camera():
    global frame,buttonY
-   frame1.destroy()
+   main_frame_delete()
    frame = ttk.Frame(root)
 
    def main_frame1(num):
@@ -8002,7 +8290,7 @@ def web_camera():
 
 def vidwo_fade():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def top1(drop):
@@ -8057,7 +8345,7 @@ def vidwo_fade():
 
 def aes_file():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     # AES-256オブジェクト作成
@@ -8117,7 +8405,7 @@ def aes_file():
 
 def video_str():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def download_srt_file(video_id):
@@ -8220,7 +8508,7 @@ def video_str():
 
 def delete2file():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def dnd(drop):
@@ -8276,7 +8564,7 @@ def delete2file():
 
 def window_center():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def on_combo_click(event):
@@ -8332,7 +8620,7 @@ def window_center():
 
 def image_join():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def dnd(drop):
@@ -8417,19 +8705,22 @@ def get_copyimage():
         except:
             messagebox.showerror("エラー","失敗しました")
 
-    frame1.destroy()
-    frame = ttk.Frame(root, padding=16)
-    button=ttk.Button(frame,text='コピー画像取得',command=get_copyimage1,padding=[80,10,80,10])
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
-    frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    button.grid(row=1,column=0,columnspan=2)
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='コピー画像取得',command=get_copyimage1,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        get_copyimage1()
 
 def text_search():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def search_text():
@@ -8506,19 +8797,22 @@ def site_image():
         except:
             messagebox.showerror("エラー","失敗しました")
 
-    frame1.destroy()
-    frame = ttk.Frame(root, padding=16)
-    button=ttk.Button(frame,text='サイト画像DL',command=site_image1,padding=[80,10,80,10])
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
-    frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    button.grid(row=1,column=0,columnspan=2)
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='サイト画像DL',command=site_image1,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        site_image1()
 
 def dice():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def dice_execute():
@@ -8540,7 +8834,7 @@ def dice():
     entry1.insert(END,"6")
     entry2.insert(END,"1")
     button=ttk.Button(frame,text="実行",command=dice_execute)
-    label2=ttk.Label(frame,text="",font=("Helvetica", 18))
+    label2=ttk.Label(frame,font=("Helvetica", 18),text="結果：")
 
     frame.pack()
     buttonX.grid(row=0,column=1,columnspan=2)
@@ -8553,7 +8847,7 @@ def dice():
 
 def dummy_txt():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def dumy_tet1():
@@ -8591,7 +8885,7 @@ def dummy_txt():
 
 def dummy_img():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def dumy_img1():
@@ -8630,7 +8924,7 @@ def dummy_img():
 
 def unix_time():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def unix_time1():
@@ -8688,7 +8982,7 @@ def unix_time():
 
 def web_video_info():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def web_video_info1():
@@ -8736,19 +9030,22 @@ def empty_line():
         except:
             messagebox.showerror("エラー","失敗しました")
 
-    frame1.destroy()
-    frame = ttk.Frame(root, padding=16)
-    button=ttk.Button(frame,text='空行削除',command=empty_line1,padding=[80,10,80,10])
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
-    frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    button.grid(row=1,column=0,columnspan=2)
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='空行削除',command=empty_line1,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        empty_line1()
 
 def mp3_tag():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def check():
@@ -8853,7 +9150,7 @@ def mp3_tag():
 
 def pdf_text():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def dnd(drop):
@@ -8887,7 +9184,7 @@ def pdf_text():
 
 def file_hash():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def dnd(drop):
@@ -8935,7 +9232,7 @@ def file_hash():
 
 def text_hash():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def text_hash_execute():
@@ -8978,7 +9275,7 @@ def text_hash():
 
 def image_base64():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def dnd(drop):
@@ -9021,15 +9318,18 @@ def url_shotcut():
         except:
             messagebox.showerror("エラー","保存に失敗しました")
 
-    frame1.destroy()
-    frame = ttk.Frame(root, padding=16)
-    button=ttk.Button(frame,text='URLショトカ',command=url_shotcut1,padding=[80,10,80,10])
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
-    frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    button.grid(row=1,column=0,columnspan=2)
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='URLショトカ',command=url_shotcut1,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        url_shotcut1()
 
 def explore_restart():
     global frame,buttonY
@@ -9037,7 +9337,7 @@ def explore_restart():
         os.system("taskkill /f /im explorer.exe")
         os.system("start explorer.exe")
 
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=16)
     button=ttk.Button(frame,text='エクスプローラー再起動',command=explorer_restart1,padding=[80,10,80,10])
     buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
@@ -9055,7 +9355,7 @@ def godmode():
 
 def cursive():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def cursive_change(text):
@@ -9101,7 +9401,7 @@ def cursive():
 
 def warikan():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def warikan1():
@@ -9183,7 +9483,7 @@ def warikan():
 
 def color_picker():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def showMenu(e):
@@ -9292,7 +9592,7 @@ def color_picker():
 
 def magnifier():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
     img_size = 500
     img_double_size = img_size * 0.5
@@ -9394,7 +9694,7 @@ def magnifier():
 
 def excel_csv():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def widget_set():
@@ -9464,7 +9764,7 @@ def excel_csv():
 
 def unicode_normalize():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def unicode_normalize1():
@@ -9504,7 +9804,7 @@ def unicode_normalize():
 
 def office_image():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def dnd(drop):
@@ -9566,7 +9866,7 @@ def office_image():
 
 def gif_video():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def gif_video1():
@@ -9678,7 +9978,7 @@ def gif_video():
 
 def metrome():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
     onoff=0
 
@@ -9830,19 +10130,22 @@ def ogp():
         pmenu.add_command(label="画像URLコピー", command=copy)
         root1.bind("<Button-3>", showMenu)
 
-    frame1.destroy()
-    frame = ttk.Frame(root, padding=16)
-    button=ttk.Button(frame,text='OGP取得',command=ogp1,padding=[80,10,80,10])
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
-    frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    button.grid(row=1,column=0,columnspan=2)
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='OGP取得',command=ogp1,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        ogp1()
 
 def copy_image():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def dnd(drop):
@@ -9877,7 +10180,7 @@ def copy_image():
 
 def cloud_download():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def cloud_download1():
@@ -9914,7 +10217,7 @@ def cloud_download():
 
 def voice_concat():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def voice_concat_top():
@@ -9970,7 +10273,7 @@ def voice_concat():
 
 def json_format():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def json_formatA(txt):
@@ -10051,7 +10354,7 @@ def env_word():
 
 def seiwa():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def seiwa1():
@@ -10204,7 +10507,7 @@ def wallpaper():
 
 def pdf_image():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def pdf_image1(drop):
@@ -10236,7 +10539,7 @@ def pdf_image():
 
 def pdf_press():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def pdf_press1(drop):
@@ -10283,9 +10586,9 @@ def pdf_press():
 
     var=IntVar()
     var.set(0)
-    radio1=Radiobutton(frame,text="オブジェクト重複削除",variable=var,value=0)
-    radio2=Radiobutton(frame,text="画像画質圧縮",variable=var,value=1)
-    radio3=Radiobutton(frame,text="PDF可逆圧縮",variable=var,value=2)
+    radio1=ttk.Radiobutton(frame,text="オブジェクト重複削除",variable=var,value=0)
+    radio2=ttk.Radiobutton(frame,text="画像画質圧縮",variable=var,value=1)
+    radio3=ttk.Radiobutton(frame,text="PDF可逆圧縮",variable=var,value=2)
     label1=ttk.Label(frame,text="PDFをここに\nドロップしてください",font=("Helvetica", 20))
     label1.drop_target_register(DND_FILES)
     label1.dnd_bind('<<Drop>>',pdf_press1)
@@ -10302,7 +10605,7 @@ def pdf_press():
 
 def pdf_rotate():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def pdf_rotate1(drop):
@@ -10346,7 +10649,7 @@ def pdf_rotate():
 
 def window_kill():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def get_active_window_info():
@@ -10399,7 +10702,7 @@ def window_kill():
 
 def time_calc():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def time_calc1():
@@ -10452,7 +10755,7 @@ def time_calc():
 
 def golden_ratio():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def golden_ratio1():
@@ -10559,7 +10862,7 @@ def piano():
 
 def json_csv():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def json_csv1(drop):
@@ -10608,7 +10911,7 @@ def json_csv():
 
 def exchange():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
     url = f"https://api.coingecko.com/api/v3/exchange_rates"
     response = requests.get(url)
@@ -10662,7 +10965,7 @@ def exchange():
 
 def score_calc():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
     num1=0
     num2=0
@@ -10730,7 +11033,7 @@ def score_calc():
 
 def video_time_image():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def video_time_image1(drop):
@@ -10840,7 +11143,7 @@ def video_time_image():
 
 def pdf_insert():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def pdf_insert1_1(drop):
@@ -10896,7 +11199,7 @@ def pdf_insert():
 
 def word_book():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def word_book1(drop):
@@ -11020,7 +11323,7 @@ def word_book():
 
 def color_name():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def color_name1():
@@ -11076,7 +11379,7 @@ def color_name():
 
 def desc_mascot():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
     def desc_mascot1(drop):
@@ -11118,7 +11421,7 @@ def desc_mascot():
 
 def auto_oparation():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root)
 
 
@@ -11557,7 +11860,7 @@ def auto_oparation():
 
 def compulsion_paste():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def on_release(key1):
@@ -11596,7 +11899,7 @@ def compulsion_paste():
 
 def window_tray():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def on_release(key):
@@ -11737,7 +12040,7 @@ def window_tray():
 
 def code_change():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def code_change1(drop):
@@ -11786,7 +12089,7 @@ def code_change():
 
 def code_check():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def code_check1(drop):
@@ -11880,7 +12183,7 @@ def mouse_highlight():
 
 def image_excel():
     global frame,buttonY
-    frame1.destroy()
+    main_frame_delete()
     frame = ttk.Frame(root, padding=12)
 
     def image_excel1(drop):
@@ -11938,6 +12241,821 @@ def image_excel():
     buttonY.grid(row=0,column=0)
     label.grid(row=1,column=0,columnspan=2)
 
+def markdown_edit():
+
+    def save_md():
+        path=filedialog.asksaveasfilename(filetypes=[("Markdown","*.md")],defaultextension=".md",initialfile="markdown.md")
+        sample_text=text.get("1.0",END)
+        with open(path, 'w',encoding="utf-8") as f:
+            f.write(sample_text)
+
+    def save_html():
+        path=filedialog.asksaveasfilename(filetypes=[("HTML","*.html")],defaultextension=".html",initialfile="markdown.html")
+        sample_text=text.get("1.0",END)
+        md = markdown.Markdown(extensions=["extra","codehilite","sane_lists",
+                                    "smarty","wikilinks","nl2br","admonition",
+                                    "meta",'mdx_truly_sane_lists',"toc"],)
+        html1=md.convert(sample_text).replace("<table>\n","<table border='1'>\n")
+        html1=html1.replace("<body>","<body style='font-family:Meiryo;'>")
+        html1=convert_to_html_links(html1)
+        with open(path, 'w',encoding="utf-8") as f:
+            f.write(html1)
+
+    def make_table():
+        def generate_markdown_table(rows, columns):
+            # Creating the header row
+            header_row = "| " + " | ".join(["Header" for i in range(columns)]) + " |"
+            # Creating the separator row
+            separator_row = "|" + "---|" * columns
+            # Creating the data rows
+            data_rows = [
+                "| " + " | ".join(["Data" for j in range(columns)]) + " |"
+                for _ in range(rows - 1)
+            ]
+            # Combining all parts
+            markdown_table = "\n".join([header_row, separator_row] + data_rows)
+            return markdown_table
+
+        table_size=simpledialog.askstring("表の大きさ","行数,列数").split(",")
+        width,height=int(table_size[0]),int(table_size[1])
+        table_text=generate_markdown_table(width,height)
+        text.insert(INSERT, table_text+"\n")
+
+    def make_h():
+        text.insert(INSERT, "[TOC]\n")
+
+    def make_code():
+        try:
+            # 選択されたテキストの開始と終了インデックスを取得
+            start_index = text.tag_ranges("sel")[0]
+            end_index = text.tag_ranges("sel")[1]
+            # 選択されたテキストを取得
+            selected_text = text.get(start_index, end_index)
+            # テキストを**で囲む
+            enclosed_text = f"`{selected_text}`"
+            # 元のテキストを削除して新しいテキストを挿入
+            text.delete(start_index, end_index)
+            text.insert(start_index, enclosed_text)
+        except:
+            text.insert(INSERT, "`コード`")
+
+    def make_bold():
+        try:
+            # 選択されたテキストの開始と終了インデックスを取得
+            start_index = text.tag_ranges("sel")[0]
+            end_index = text.tag_ranges("sel")[1]
+            # 選択されたテキストを取得
+            selected_text = text.get(start_index, end_index)
+            # テキストを**で囲む
+            enclosed_text = f"**{selected_text}**"
+            # 元のテキストを削除して新しいテキストを挿入
+            text.delete(start_index, end_index)
+            text.insert(start_index, enclosed_text)
+        except:
+            text.insert(INSERT, "**太字**")
+
+    def make_ital():
+        try:
+            # 選択されたテキストの開始と終了インデックスを取得
+            start_index = text.tag_ranges("sel")[0]
+            end_index = text.tag_ranges("sel")[1]
+            # 選択されたテキストを取得
+            selected_text = text.get(start_index, end_index)
+            # テキストを**で囲む
+            enclosed_text = f"*{selected_text}*"
+            # 元のテキストを削除して新しいテキストを挿入
+            text.delete(start_index, end_index)
+            text.insert(start_index, enclosed_text)
+        except:
+            text.insert(INSERT, "*斜体*")
+
+    def make_strong():
+        try:
+            # 選択されたテキストの開始と終了インデックスを取得
+            start_index = text.tag_ranges("sel")[0]
+            end_index = text.tag_ranges("sel")[1]
+            # 選択されたテキストを取得
+            selected_text = text.get(start_index, end_index)
+            # テキストを**で囲む
+            enclosed_text = f"***{selected_text}***"
+            # 元のテキストを削除して新しいテキストを挿入
+            text.delete(start_index, end_index)
+            text.insert(start_index, enclosed_text)
+        except:
+            text.insert(INSERT, "***強調***")
+
+    def make_link():
+        text.insert(INSERT, "[リンク名](URL)")
+
+    def make_annotation():
+        text.insert(INSERT, "[^注釈名]\n\n[^注釈名]:注釈内容")
+
+    def make_text_color():
+        rgb1=colorchooser.askcolor(title="文字色")[1]
+        rgb2=colorchooser.askcolor(title="背景色")[1]
+        try:
+            # 選択されたテキストの開始と終了インデックスを取得
+            start_index = text.tag_ranges("sel")[0]
+            end_index = text.tag_ranges("sel")[1]
+            # 選択されたテキストを取得
+            selected_text = text.get(start_index, end_index)
+            # テキストを**で囲む
+            enclosed_text = f"<span style='color: {rgb1}; background-color:{rgb2};'>{selected_text}</span>"
+            # 元のテキストを削除して新しいテキストを挿入
+            text.delete(start_index, end_index)
+            text.insert(start_index, enclosed_text)
+        except:
+            text.insert(INSERT, f"<span style='color: {rgb1};background-color:{rgb2}; '>文字色</span>")
+
+    def make_del():
+        try:
+            # 選択されたテキストの開始と終了インデックスを取得
+            start_index = text.tag_ranges("sel")[0]
+            end_index = text.tag_ranges("sel")[1]
+            # 選択されたテキストを取得
+            selected_text = text.get(start_index, end_index)
+            # テキストを**で囲む
+            enclosed_text = f"~~{selected_text}~~"
+            # 元のテキストを削除して新しいテキストを挿入
+            text.delete(start_index, end_index)
+            text.insert(start_index, enclosed_text)
+        except:
+            text.insert(INSERT, "~~取り消し~~")
+
+    def on_key_press(event):
+        index = text.index("insert").split('.')
+        line_number = int(index[0])
+        current_line = text.get(f"{line_number}.0", f"{line_number}.end")
+        cursor_pos = text.index(INSERT)
+        line_end = cursor_pos.split('.')[0] + '.end'
+        text_after_cursor = text.get(cursor_pos, line_end)
+
+        if event.keysym == 'Return':
+            stripped_line = current_line.lstrip()
+            list_match = re.match(r'(\s*)(\d+)\.\s*(.*)', current_line)
+            hyphen_list_match = re.match(r'(\s*)-\s+.*', current_line)  # ハイフンとスペースの組み合わせのマッチング
+            asterisk_list_match = re.match(r'(\s*)\*\s+.*', current_line)  # アスタリスクとスペースの組み合わせのマッチング
+
+            if hyphen_list_match or asterisk_list_match:  # ハイフンまたはアスタリスクとスペースで始まる場合
+                process_list_item(line_number, stripped_line, current_line,text_after_cursor)
+                text.delete(cursor_pos, line_end)
+                text.mark_set(INSERT, f"{int(cursor_pos.split('.')[0])+1}.end")
+                update_numbered_list(line_number + 1)  # 番号付きリストの更新
+                return "break"
+            elif list_match:
+                process_numbered_list_item(line_number, list_match,text_after_cursor)
+                text.delete(cursor_pos, line_end)
+                text.mark_set(INSERT, f"{int(cursor_pos.split('.')[0])+1}.end")
+                update_numbered_list(line_number + 1)  # 番号付きリストの更新
+                return "break"
+
+        elif event.keysym == 'Tab':
+            adjust_indent(line_number, current_line, event.state & 0x0001)
+            return "break"
+
+    def process_list_item(line_number, stripped_line, current_line,text_after_cursor):
+        if stripped_line in ('-', '- ', '*', '* '):  # '*' を追加
+            text.delete(f"{line_number}.0", f"{line_number}.end")
+        else:
+            indent = len(current_line) - len(stripped_line)
+            new_bullet = '*' if stripped_line.startswith('*') else '-'  # 新しいバレットを決定
+            text.insert(f"{line_number}.end", '\n' + ' ' * indent + new_bullet + ' '+text_after_cursor)
+
+    def process_numbered_list_item(line_number, match,text_after_cursor):
+        indent, number, content = match.groups()
+        if not content:
+            text.delete(f"{line_number}.0", f"{line_number}.end")
+        else:
+            next_number = int(number) + 1
+            text.insert(f"{line_number}.end", '\n' + indent + f"{next_number}. "+text_after_cursor)
+
+    def adjust_indent(line_number, current_line, is_shift_pressed):
+        indent_match = re.match(r'(\s*)(\-|\*|\d+\.)', current_line)  # '*' を追加
+        if indent_match:
+            indent, list_type = indent_match.groups()
+            if list_type in ('-', '*'):  # '*' を追加
+                new_indent = "  " + indent if not is_shift_pressed else indent[2:]
+                text.delete(f"{line_number}.0", f"{line_number}.{len(indent)}")
+                text.insert(f"{line_number}.0", new_indent)
+            else:
+                # 番号付きリストの場合
+                new_indent = "  " + indent if not is_shift_pressed else indent[2:]
+                reset_list_number(line_number, new_indent, is_decreasing_indent=is_shift_pressed)
+        update_numbered_list(line_number)
+
+
+    def reset_list_number(line_number, new_indent, is_decreasing_indent):
+        current_line = text.get(f"{line_number}.0", f"{line_number}.end")
+        match = re.match(r'(\s*)(\d+)\.', current_line)
+        if match:
+            if is_decreasing_indent:
+                new_number = str(get_previous_number_same_level(line_number, new_indent))
+            else:
+                new_number = str(get_next_list_number_same_level(line_number, new_indent))
+            replacement = f"{new_indent}{new_number}."
+            text.replace(f"{line_number}.0", f"{line_number}.{len(match.group(0))}", replacement)
+
+    def get_next_list_number_same_level(line_number, indent):
+        next_line_number = line_number - 1
+        while next_line_number > 0:
+            line = text.get(f"{next_line_number}.0", f"{next_line_number}.end")
+            match = re.match(r'(\s*)(\d+)\.', line)
+            if match and match.group(1) == indent:
+                return int(match.group(2)) + 1
+            elif match and len(match.group(1)) < len(indent):
+                # 異なるネストが存在する
+                break
+            next_line_number -= 1
+        return 1
+
+    def get_previous_number_same_level(line_number, indent):
+        prev_line_number = line_number - 1
+        while prev_line_number > 0:
+            line = text.get(f"{prev_line_number}.0", f"{prev_line_number}.end")
+            match = re.match(r'(\s*)(\d+)\.', line)
+            if match:
+                if match.group(1) == indent:
+                    return int(match.group(2)) + 1
+                elif len(match.group(1)) < len(indent):
+                    break  # 間に異なるネストが存在する
+            prev_line_number -= 1
+        return 1
+
+    def update_numbered_list(changed_line_number):
+        start_line = find_list_start(changed_line_number)
+        line_number = start_line
+        last_line_number = int(text.index('end-1c').split('.')[0])
+
+        # 各レベルの番号を保持する辞書
+        level_numbers = {}
+
+        while line_number <= last_line_number:
+            line = text.get(f"{line_number}.0", f"{line_number}.end")
+            indent_level = get_indent_level(line)
+
+            if is_numbered_list_item(line):
+                # 同じレベルの以前の番号を取得し、それを1増やす
+                number = level_numbers.get(indent_level, 0) + 1
+                level_numbers[indent_level] = number
+
+                # より深いレベルの番号をリセット
+                for level in list(level_numbers.keys()):
+                    if level > indent_level:
+                        del level_numbers[level]
+
+                new_line = re.sub(r'\d+\.', f"{number}.", line)
+                text.replace(f"{line_number}.0", f"{line_number}.end", new_line)
+
+            elif line.strip() == '':
+                break  # 空の行でリスト終了とみなす
+
+            line_number += 1
+
+    def is_numbered_list_item(line):
+        # 番号付きリストアイテムかどうかを判断
+        return bool(re.match(r'\s*\d+\.', line))
+
+    def find_list_start(line_number):
+        # リストの開始行を見つける
+        while line_number > 0:
+            line = text.get(f"{line_number}.0", f"{line_number}.end")
+            if not is_numbered_list_item(line) or line.strip() == '':
+                break
+            line_number -= 1
+        return line_number + 1
+
+    def get_indent_level(line):
+        indent_match = re.match(r'(\s*)', line)
+        return len(indent_match.group(1)) if indent_match else 0
+
+    def image_drop(drop):
+        path=drop.data.replace("{","").replace("}","").replace("\\","/")
+        # mdファイルの場合のみ分岐
+        if os.path.splitext(path)[1]==".md":
+            with open(path, 'r',encoding="utf-8") as f:
+                sample_text=f.read()
+                text.delete("1.0",END)
+                text.insert(INSERT, sample_text)
+            return
+
+        image_text=f'![{path.split("/")[-1]}](file:///{path})'
+        text.insert(INSERT, image_text)
+
+    def find_urls(text):
+        # 正規表現を用いてURLを見つける
+        url_pattern = r'https?://[^\s<>"]+|www\.[^\s<>"]+'
+        return re.findall(url_pattern, text)
+
+    def convert_to_html_links(text):
+        urls = find_urls(text)
+        urls=list(set(urls))
+        for url in urls:
+            # HTMLリンクタグの形式に変換
+            html_link = f'<a href="{url}">{url}</a>'
+            text = text.replace(url, html_link)
+        return text
+
+    def load_new_page(url):
+
+        url1=str(url.replace("file:///",""))
+        url2=url1.replace(os.getcwd(),"")
+        pattern1=r"/#.+"
+        if re.match(pattern1,url2):
+            url_new="file:///"+os.getcwd()+url2.replace(":","")
+            frame_html.load_url(url_new)
+            return
+        elif os.path.isfile(url1):
+            os.startfile(url1)
+            return
+        webbrowser.open(url)
+
+    def get_html():
+        nonlocal num,html
+        sample_text=text.get("1.0",END)
+        md = markdown.Markdown(extensions=["extra","codehilite","sane_lists",
+                                    "smarty","wikilinks","nl2br","admonition",
+                                    "meta",'mdx_truly_sane_lists',"toc"],)
+        #sample_text=sample_text.replace("\n- [ ] ","\n<input type='checkbox' checked='checked'> ")
+        #if sample_text[:6]=="- [ ] ":
+        #    sample_text="<input type='checkbox' name='' value=''> "+sample_text[5:]
+        html1=md.convert(sample_text).replace("<table>\n","<table border='1'>\n")
+        html1=html1.replace("<body>","<body style='font-family:Meiryo;'>")
+        html1=convert_to_html_links(html1)
+        pattern = r"~~(.*?)~~"
+        html1 = re.sub(pattern, r"<s>\1</s>", html1)
+        html1=html1.replace("<blockquote>","<blockquote style='font-style: italic; background-color: lightgray'>")
+        soup = BeautifulSoup(html1, 'html.parser')
+        for tag in soup.find_all(id=True):
+            tag['id'] = tag['id'].replace(':', '')
+        html1=str(soup)
+        num=frame_html.yview()[0]
+        if html1!=html:
+            html=html1
+            frame_html.load_html(html1)
+            frame_html.yview_moveto(num)
+        root1.after(1000,get_html)
+
+    num=0.0
+    html=""
+    root1 = Toplevel(root)
+    root1.geometry("1500x600")
+    root1.title("Markdown Editor")
+    menubar = Menu(root1)
+    paned_window = PanedWindow(root1, showhandle=False)
+
+    paned_window.pack(fill=BOTH, expand=True)
+    frame_l=ttk.Frame(paned_window)
+    frame_r=ttk.Frame(paned_window)
+    paned_window.add(frame_l)
+    paned_window.add(frame_r)
+    root1.config(menu=menubar)
+    # menubarを親として設定メニューを作成と表示
+    setting_menu = Menu(menubar, tearoff=0)
+    menubar.add_cascade(label='ファイル', menu=setting_menu)
+    setting_menu.add_command(label='マークダウンとして保存', command=save_md)
+    setting_menu.add_command(label='HTMLとして保存', command=save_html)
+
+    frame_html = HtmlFrame(frame_r,messages_enabled = False,horizontal_scrollbar=True) #create the HTML browser
+    frame_html.enable_stylesheets(enabled=True)
+    frame_html.on_link_click(load_new_page)
+    frame_html.set_maximum_thread_count(19)
+    frame_html.on_done_loading(lambda: frame_html.yview_moveto(num))
+
+    root1.after(100,get_html)
+
+    text=scrolledtext.ScrolledText(frame_l,wrap=WORD,undo=True)
+
+    #frame_l.pack(side=LEFT,fill="both", expand=True)
+    #frame_r.pack(side=RIGHT,fill="both", expand=True)
+    text.pack(fill="both", expand=True)
+    frame_html.pack(fill="both", expand=True)
+    #text.bind('<Return>', insert_bullet_point)
+    text.drop_target_register(DND_FILES)
+    text.dnd_bind('<<Drop>>', image_drop)
+    text.bind('<KeyPress-Return>', on_key_press)
+    text.bind('<KeyPress-Tab>', on_key_press)
+
+    RightClickMenu(text,[["コード",make_code],
+                        ["太字",make_bold],["斜体",make_ital],
+                        ["強調",make_strong],["取り消し線",make_del],
+                        ["リンク",make_link],["表",make_table],["目次",make_h],
+                        ["注釈",make_annotation],["文字色",make_text_color]])
+
+
+def heic_convert():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+
+    def heic_convert1(drop):
+        paths=drop.data.replace("{","").replace("}","").replace("\\","/")
+        x_list=file_mult(paths)
+        for x in x_list:
+            try:
+                y=x.replace(".heic",".png")
+                y=y.replace(".HEIC",".png")
+                heif_file = pillow_heif.read_heif(x)
+                image = Image.frombytes(
+                    heif_file.mode,
+                    heif_file.size,
+                    heif_file.data,
+                    "raw",
+                    heif_file.mode,
+                    heif_file.stride,
+                )
+                image.save(y, 'PNG')
+            except:
+                messagebox.showerror("エラー",f"{x}\nは失敗しました")
+        messagebox.showinfo("完了","変換が終了しました")
+
+
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+    label=ttk.Label(frame,text="HEICファイルを\nドロップしてください",font=("Helvetica", 20))
+    frame.drop_target_register(DND_FILES)
+    frame.dnd_bind('<<Drop>>',heic_convert1)
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label.grid(row=1,column=0,columnspan=2)
+
+def totp_generator():
+
+    def add_data():
+        nonlocal savejson
+        try:
+            root.iconify()
+            make_folder(os.getcwd()+"/temp1/qr_img")
+            n=pyautogui.screenshot(os.getcwd()+'/temp1/qr_img/temp.png')
+            root1=Toplevel()
+
+            def start():
+                nonlocal pil_img,pil_img1,canvas_img
+                pil_img=Image.open(os.getcwd()+'/temp1/qr_img/temp.png')
+                pil_img1=pil_img
+                canvas.config(width=pil_img1.width, height=pil_img1.height)
+                canvas_img= ImageTk.PhotoImage(pil_img1)
+                canvas.canvas_img = canvas_img
+                canvas.create_image(pil_img1.width*0.5,pil_img1.height*0.5,image=canvas_img)
+                root1.attributes('-fullscreen', True)
+
+
+            def on_press(event):
+                canvas.delete("rect")
+                nonlocal start_x
+                nonlocal start_y
+                start_x = canvas.canvasx(event.x)
+                start_y = canvas.canvasy(event.y)
+
+            def on_move_press(event):
+                nonlocal end_x, end_y
+                end_x, end_y = event.x, event.y
+                canvas.delete("rect")
+                canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="lightgreen", tags="rect", width=1.5)
+
+            def on_release(event):
+                nonlocal end_x, end_y
+                end_x, end_y = event.x, event.y
+                canvas.delete("rect")
+                canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="lightgreen", tags="rect", width=1.5)
+                root1.destroy()
+                triming()
+
+            def triming():
+                #try:
+                    nonlocal start_x,start_y,end_x,end_y,savejson
+                    if start_x>end_x:
+                        start_x,end_x=end_x,start_x
+                    if start_y>end_y:
+                        start_y,end_y=end_y,start_y
+                    crop=pil_img.crop((start_x,start_y,end_x,end_y))
+                    crop.save(os.getcwd()+"/temp1/qr_img/temp1.png")
+                    img = cv2.imdecode(
+                        np.fromfile(os.getcwd()+"/temp1/qr_img/temp1.png", dtype=np.uint8),
+                        cv2.IMREAD_UNCHANGED
+                        )
+                    qrDetector = cv2.QRCodeDetector()
+                    data,_,_ = qrDetector.detectAndDecode(img)
+                    uri=data
+                    if y=="":
+                        messagebox.showerror("エラー","うまくQRコードを読み取れませんでした")
+                        return
+                    os.remove(os.getcwd()+"/temp1/qr_img/temp.png")
+                    os.remove(os.getcwd()+"/temp1/qr_img/temp1.png")
+                    # 正規表現を定義
+                    pattern = re.compile(r'otpauth://totp/([^%]+)%3A([^?]+)\?secret=([^&]+).*issuer=([^&]+)')
+                    # URIから情報を抽出
+                    match = pattern.match(uri)
+                    if match:
+                        site = unquote(match.group(1))
+                        username = unquote(match.group(2))
+                        secret_id = unquote(match.group(3))
+                    else:
+                        pattern = re.compile(r'otpauth://totp/([^%]+):([^?]+)\?secret=([^&]+).*issuer=([^&]+)')
+                        match = pattern.match(uri)
+                        site = unquote(match.group(1))
+                        username = unquote(match.group(2))
+                        secret_id = unquote(match.group(3))
+                    savejson+= [{"site_name": site, "my_name": username, "code": secret_id, "uri": uri}]
+                    action_list=[[item["site_name"],item["my_name"] ,pyotp.TOTP(item["code"]).now()] for item in savejson]
+                    tree.configure_arr(action_list)
+                    json_save()
+                    root.deiconify()
+                    messagebox.showinfo("完了","追加が完了しました")
+                #except:
+                #    messagebox.showerror("エラー１","うまくQRコードを読み取れませんでした")
+                #    root.deiconify()
+                #    return
+
+            start_x=None
+            start_y=None
+            end_x=None
+            end_y=None
+
+            pil_img=None
+            pil_img1=None
+            canvas_img=None
+            root.update()
+            canvas=Canvas(root1,width=300,height=300,bg="gray")
+            canvas.bind("<ButtonPress-1>", on_press)
+            canvas.bind("<ButtonRelease-1>", on_release)
+            canvas.bind("<B1-Motion>", on_move_press)
+            canvas.pack(expand=True,side=TOP)
+            root.after(10,start)
+        except:
+            messagebox.showerror("エラー","うまくQRコードを読み取れませんでした")
+            root.deiconify()
+            return
+
+    def json_save():
+        json_data = json.dumps(savejson, indent=2).encode('utf-8')
+        savedata = encrypt(json_data, pass_hash)
+        make_folder(os.getcwd()+"/config/totp_data")
+        with open(os.getcwd()+"/config/totp_data/totp_list", 'wb') as f:
+            f.write(savedata)
+
+
+    def update_time():
+        nonlocal action_list
+        try:
+            if  len(savejson)!=0:
+                action_list1=action_list.copy()
+                action_list=[[item["site_name"],item["my_name"] ,pyotp.TOTP(item["code"]).now()] for item in savejson]
+                if action_list1!=action_list:
+                    tree.configure_arr(action_list)
+            label_time.config(text="残り時間："+str(30-int(time.time())%30))
+            root.after(200,update_time)
+        except:
+            return
+
+    def num_copy():
+        try:
+            record_id = tree.focus()
+            record_values = tree.item(record_id, 'values')
+            clip.copy(record_values[2])
+        except:
+            messagebox.showerror("エラー","行を指定してください")
+
+    def delete_data():
+        ok_no=messagebox.askyesno("確認","削除してもよろしいですか？")
+        if ok_no!=True:
+            return
+        try:
+            record_id = tree.focus()
+            record_values = tree.item(record_id, 'values')
+            for i in range(len(savejson)):
+                if savejson[i]["site_name"]==record_values[0] and savejson[i]["my_name"]==record_values[1] and pyotp.TOTP(savejson[i]["code"]).now()==record_values[2]:
+                    del savejson[i]
+                    break
+            action_list=[[item["site_name"],item["my_name"] ,pyotp.TOTP(item["code"]).now()] for item in savejson]
+            tree.configure_arr(action_list)
+            json_save()
+            messagebox.showinfo("完了","削除しました")
+        except:
+            messagebox.showerror("エラー","行を指定してください")
+
+    def show_qr():
+        try:
+            record_id = tree.focus()
+            record_values = tree.item(record_id, 'values')
+            for i in range(len(savejson)):
+                if savejson[i]["site_name"]==record_values[0] and savejson[i]["my_name"]==record_values[1] and pyotp.TOTP(savejson[i]["code"]).now()==record_values[2]:
+                    uri1=savejson[i]["uri"]
+                    break
+            make_folder(os.getcwd()+"/temp1/qr_img")
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(uri1)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            img.save(os.getcwd()+"/temp1/qr_img/temp.png")
+            root1=Toplevel()
+            root1.title("QRコード")
+            # 最前面
+            root1.attributes('-topmost', True)
+            canvas=Canvas(root1,width=300,height=300,bg="gray")
+            canvas.pack(expand=True,side=TOP)
+            pil_img=Image.open(os.getcwd()+"/temp1/qr_img/temp.png")
+            pil_img1=pil_img
+            canvas.config(width=pil_img1.width, height=pil_img1.height)
+            canvas_img= ImageTk.PhotoImage(pil_img1)
+            canvas.canvas_img = canvas_img
+            canvas.create_image(pil_img1.width*0.5,pil_img1.height*0.5,image=canvas_img)
+        except:
+            messagebox.showerror("エラー","行を指定してください")
+
+
+    def change_pass():
+        nonlocal savejson,pass_hash
+        new_pass=simpledialog.askstring("パスワード","新しいパスワードを入力してください")
+        if new_pass==None:
+            return
+        pass_hash=hashlib.sha512(f"{str(new_pass)}YukisArmyknife".rstrip().encode()).hexdigest()
+        for i in range(10):
+            pass_hash=hashlib.sha512(pass_hash.rstrip().encode()).hexdigest()
+        json_save()
+        messagebox.showinfo("完了","パスワードを変更しました")
+
+
+    def aes_new(password, iv):
+        sha = Crypto.Hash.SHA256.new()
+        sha.update(password.encode())
+        return AES.new(sha.digest(), AES.MODE_CFB, iv)
+
+    def decrypt(data, password):
+        iv, cipher = data[:AES.block_size], data[AES.block_size:]
+        return aes_new(password, iv).decrypt(cipher)
+
+        # 暗号化
+    def encrypt(data, password):
+        iv = Crypto.Random.new().read(AES.block_size)
+        return iv + aes_new(password, iv).encrypt(data)
+
+    try:
+        if os.path.exists(os.getcwd()+"/config/totp_data/totp_list"):
+            with open(os.getcwd()+"/config/totp_data/totp_list", 'rb') as f:
+                totp_data=f.read()
+            password=simpledialog.askstring("パスワード","パスワードを入力してください")
+            if password==None:
+                return
+            pass_hash=hashlib.sha512(f"{str(password)}YukisArmyknife".rstrip().encode()).hexdigest()
+            for i in range(10):
+                pass_hash=hashlib.sha512(pass_hash.rstrip().encode()).hexdigest()
+            savedata = decrypt(totp_data, pass_hash)
+            savejson=json.loads(savedata)
+        else:
+            messagebox.showerror("初期設定","パスワードを設定してください")
+            new_pass=simpledialog.askstring("パスワード","パスワードを入力してください")
+            pass_hash=hashlib.sha512(f"{str(new_pass)}YukisArmyknife".rstrip().encode()).hexdigest()
+            for i in range(10):
+                pass_hash=hashlib.sha512(pass_hash.rstrip().encode()).hexdigest()
+            savejson=[]
+            messagebox.showinfo("初期設定","初期設定が完了しました")
+    except:
+        messagebox.showerror("エラー","パスワードが間違っています")
+        return
+
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+    if len(savejson)==0:
+        action_list=[]
+    else:
+        action_list=[[item["site_name"],item["my_name"] ,pyotp.TOTP(item["code"]).now()] for item in savejson]
+
+    tree=ScrolledTree(frame,arrRows=action_list,columns=["サイト","ユーザー名","パス"],arrColWidth=[150,150,100],arrSortType=["name","name","num"],height=20)
+    label_time=ttk.Label(frame,text="残り時間：")
+    button_add=ttk.Button(frame,text="追加",command=add_data)
+    RightClickMenu(tree,[["コピー",num_copy],["QR表示",show_qr],["削除",delete_data],])
+    button_change=ttk.Button(frame,text="パスワード変更",command=change_pass)
+
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
+
+    frame.pack()
+    buttonX.grid(row=0,column=2)
+    buttonY.grid(row=0,column=0)
+    label_time.grid(row=1,column=0)
+    button_change.grid(row=1,column=1)
+    button_add.grid(row=1,column=2)
+    tree.grid(row=2,column=0,columnspan=3)
+
+    root.after(10,update_time)
+
+def video_equally():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+
+    def video_cut1(drop):
+        paths=drop.data.replace("{","").replace("}","").replace("\\","/")
+        x_list=file_mult(paths)
+        cut_time=int(entry1.get().split(":")[0])*60+int(entry1.get().split(":")[1])
+        for x in x_list:
+            name,exp=os.path.splitext(x)[0],os.path.splitext(x)[1]
+            if os.path.splitext(x)[1]==".mp4" or os.path.splitext(x)[1]==".mov" or os.path.splitext(x)[1]==".avi":
+                video_clip = VideoFileClip(x)
+                check_video=1
+            elif os.path.splitext(x)[1]==".mp3" or os.path.splitext(x)[1]==".wav":
+                video_clip = AudioFileClip(x)
+                check_video=0
+            duration = video_clip.duration
+            num_splits = int(duration // cut_time)
+            for i in range(num_splits):
+                start_time = i * cut_time
+                end_time = (i + 1) * cut_time
+
+                # 動画を指定の時間で切り抜く
+                subclip = video_clip.subclip(start_time, end_time)
+                if check_video==1:
+                    # 分割した動画を保存
+                    subclip.write_videofile(f"{name}_{i+1}{exp}",logger=None)
+                elif check_video==0:
+                    # 分割した音声を保存
+                    subclip.write_audiofile(f"{name}_{i+1}{exp}",logger=None)
+
+            # 元の動画クリップを閉じる
+            video_clip.close()
+        messagebox.showinfo("完了","分割が終了しました")
+
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
+
+    label=ttk.Label(frame,text="動画・音声ファイルを\nドロップしてください",font=("Helvetica", 20))
+    label1=ttk.Label(frame,text="分割間隔(分:秒)")
+    entry1=ttk.Entry(frame,width=10)
+
+    label.drop_target_register(DND_FILES)
+    label.dnd_bind('<<Drop>>',video_cut1)
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label1.grid(row=1,column=0)
+    entry1.grid(row=1,column=1)
+    label.grid(row=2,column=0,columnspan=2)
+
+def video_audio_split():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+
+    def video_cut1(drop):
+        paths=drop.data.replace("{","").replace("}","").replace("\\","/")
+        x_list=file_mult(paths)
+        cut_time=int(entry1.get().split(":")[0])*60+int(entry1.get().split(":")[1])
+        for x in x_list:
+            name,exp=os.path.splitext(x)[0],os.path.splitext(x)[1]
+            if os.path.splitext(x)[1]==".mp4" or os.path.splitext(x)[1]==".mov" or os.path.splitext(x)[1]==".avi":
+                video_clip = VideoFileClip(x)
+                check_video=1
+            elif os.path.splitext(x)[1]==".mp3" or os.path.splitext(x)[1]==".wav":
+                video_clip = AudioFileClip(x)
+                check_video=0
+            duration = video_clip.duration
+            start_time1 = 0
+            end_time1 = cut_time
+            end_time2 = duration
+
+            # 動画を指定の時間で切り抜く
+            subclip1 = video_clip.subclip(start_time1, end_time1)
+            subclip2 = video_clip.subclip(end_time1, end_time2)
+            if check_video==1:
+                # 分割した動画を保存
+                subclip1.write_videofile(f"{name}_1{exp}",logger=None)
+                subclip2.write_videofile(f"{name}_2{exp}",logger=None)
+            elif check_video==0:
+                # 分割した音声を保存
+                subclip1.write_audiofile(f"{name}_1{exp}",logger=None)
+                subclip2.write_audiofile(f"{name}_2{exp}",logger=None)
+
+            # 元の動画クリップを閉じる
+            video_clip.close()
+        messagebox.showinfo("完了","分割が終了しました")
+
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
+
+    label=ttk.Label(frame,text="動画・音声ファイルを\nドロップしてください",font=("Helvetica", 20))
+    label1=ttk.Label(frame,text="分割時間(分:秒)")
+    entry1=ttk.Entry(frame,width=10)
+
+    label.drop_target_register(DND_FILES)
+    label.dnd_bind('<<Drop>>',video_cut1)
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label1.grid(row=1,column=0)
+    entry1.grid(row=1,column=1)
+    label.grid(row=2,column=0,columnspan=2)
+
+
 # GUI
 time.sleep(0.1)
 
@@ -11961,7 +13079,8 @@ if not os.path.exists(os.getcwd()+"/config/adv_setting.json"):
           "front_screen":1,
           "multi_window":0,
           "auto_update_chack":0,
-          "show_center":0}
+          "show_center":0,
+          "intermediate_screen":0}
     with open(os.getcwd()+"/config/adv_setting.json", "w") as file:
         json.dump(data, file)
 with open(os.getcwd()+"/config/adv_setting.json", "r") as file:
@@ -11986,6 +13105,10 @@ if "show_center" in adv_setting:
     show_center=adv_setting["show_center"]
 else:
     show_center=0
+if "intermediate_screen" in adv_setting:
+    intermediate_screen=adv_setting["intermediate_screen"]
+else:
+    intermediate_screen=0
 
 if multi_window==0:
     WindowName = "Yuki's army knife"
