@@ -9,10 +9,16 @@ windowsには便利なフリーソフトが多数あり、自分もそれらを�
 自分はまだプログラミング初心者であり、GUIを扱うのもこれが初めてであったため拙いUIですが、出来る限り便利なソフトを目指していくのでぜひ使ってみてください。
 
 
+## ダウンロード先
+
+https://github.com/yukisakura001/Yukis_Army_knife/releases
+
+
 
 ## 起動方法
 
 ### 導入方法（動画）
+(注意）ダウンロード元がGitHubのリリースページに変更されています。下に書いてある導入方法を参考にしてください。
 
 [![タイトル画像](https://img.youtube.com/vi/JaMv4i3zlFk/0.jpg)](https://www.youtube.com/watch?v=JaMv4i3zlFk)
 
@@ -57,11 +63,6 @@ https://yukisakura.notion.site/Yuki-s-Army-knife-8b11161af892436a9dd9cfa64724dec
 
 windows10及びwindows11でのみ動作
 
-
-
-## ダウンロード先
-
-https://github.com/yukisakura001/Yukis_Army_knife/releases
 
 
 
