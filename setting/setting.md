@@ -27,3 +27,5 @@ IPアドレス確認：http://checkip.dyndns.com/
 OGP情報取得：https://kotsukotsu-ogp-api.vercel.app/api/ogp
 
 為替データ取得：https://api.coingecko.com/api/v3/exchange_rates
+
+数式画像化：https://excelapi.org/docs/math/tex2image/
