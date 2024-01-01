@@ -24,7 +24,7 @@ https://github.com/yukisakura001/Yukis_Army_knife/releases
 
 ## インストーラー版
 
-**Yukis_Army_knife_Installer.exeをダウンロードし、ダブルクリックすることでインストールできます。**
+Yukis_Army_knife_Installer.exeをダウンロードし、ダブルクリックすることでインストールできます。
 
 **ver5.0以前と以後では互換性がないため、一度アンインストールしてから新バージョンをインストールしてください。**
 
@@ -34,14 +34,14 @@ https://github.com/yukisakura001/Yukis_Army_knife/releases
 
 ## ポータブル版
 
-**Yukis_Army_knife_portable.zipを解答し、フォルダの中に含まれているYukis_Army_knife.exeを実行すれば起動できます。**
+Yukis_Army_knife_portable.zipを解答し、フォルダの中に含まれているYukis_Army_knife.exeを実行すれば起動できます。
 
 
 
 ## シングルファイル版
 実行ファイルと設定フォルダのみで構成されるポータブル版です、β版なのでご注意ください
 
-**Yukis_Army_knife_single.zipを解答し、フォルダの中に含まれているYukis_Army_knife.exeを実行すれば起動できます。**
+Yukis_Army_knife_single.zipを解答し、フォルダの中に含まれているYukis_Army_knife.exeを実行すれば起動できます。
 
 
 
