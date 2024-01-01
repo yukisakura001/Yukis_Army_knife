@@ -3,7 +3,7 @@
 ## ビルドコマンド
 
 ```
-pyinstaller Yukis_Army_knife.py --noconsole --icon=icon.ico --collect-data tkinterdnd2 --collect-data pykakasi  --collect-data sv_ttk --collect-data jeraconv
+pyinstaller Yukis_Army_knife.py --noconsole --icon=icon.ico --collect-data tkinterdnd2 --collect-data pykakasi  --collect-data sv_ttk --collect-data jeraconv --collect-all tkinterweb
 ```
 
 ## 使用API
