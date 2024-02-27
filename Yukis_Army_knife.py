@@ -16,7 +16,11 @@ from PIL import Image, ImageTk,ExifTags,ImageOps,ImageDraw,ImageFont
 import qrcode
 import cv2
 import numpy as np
-from moviepy.editor import *
+from moviepy.editor import concatenate_audioclips
+from moviepy.editor import sys
+from moviepy.editor import concatenate_videoclips
+from moviepy.editor import VideoFileClip
+#from moviepy.editor import *
 import keyboard as key
 import pyautogui
 import threading
@@ -64,7 +68,7 @@ from bs4 import BeautifulSoup
 from moviepy.video.fx.mirror_x import mirror_x
 from moviepy.video.fx.mirror_y import mirror_y
 import ctypes
-#from itertools import chain
+from itertools import chain
 import math
 import string
 import pykakasi
@@ -110,8 +114,16 @@ from moviepy.video.fx.invert_colors import invert_colors
 from moviepy.audio.fx.audio_fadein import audio_fadein
 from moviepy.audio.fx.audio_fadeout import audio_fadeout
 import yaml
+#import pytesseract
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.Hash import SHA256
+import diff_match_patch
+from magika import Magika
+import sys as sys1
 
-version="6.3"
+
+version="6.4"
 
 class MyListBox(Listbox):
     def __init__(self, master, inlist, **kwargs):
@@ -1233,7 +1245,7 @@ def set_frame1(page_x):
     button134=ttk.Button(
         frame_video3,
         width=13,
-        text="Gif撮影",
+        text="GIF撮影",
         command=gif_video
     )
     button135=ttk.Button(
@@ -1519,7 +1531,7 @@ def set_frame1(page_x):
         command=text_template
     )
     button182=ttk.Button(
-        frame_text1,
+        frame_text3,
         width=13,
         text="命名規則",
         command=naming_rule
@@ -1530,9 +1542,39 @@ def set_frame1(page_x):
         text="csv↔md表変換",
         command=csv_md
     )
+    button184=ttk.Button(
+        frame_text1,
+        width=13,
+        text="コピー書換",
+        command=copy_replace
+    )
+    button185=ttk.Button(
+        frame_other2,
+        width=13,
+        text="RSA暗号化",
+        command=rsa_encrypt
+    )
+    button186=ttk.Button(
+        frame_text3,
+        width=13,
+        text="テキストdiff",
+        command=text_diff
+    )
+    button187=ttk.Button(
+        frame_image2,
+        width=13,
+        text="画像丸切取",
+        command=image_round
+    )
+    button188=ttk.Button(
+        frame_other2,
+        width=13,
+        text="ファイル判別",
+        command=file_type
+    )
 
 
-    kinou=183
+    kinou=188
 
     label_text=Label(frame_text,text="テキスト・情報",bg="green",fg="white")
     label_image=Label(frame_image,text="画像・PDF",bg="#800000",fg="white")
@@ -1747,6 +1789,48 @@ def set_frame1(page_x):
 
 
 # 共通機能
+
+
+
+
+# OpenCV保存
+def cv2_write(img,path):
+    ext=os.path.splitext(path)[1]
+    _,buf = cv2.imencode(ext, img)
+    buf.tofile(path)
+
+# OpenCV読込
+def cv2_save(path):
+    img = cv2.imdecode(
+    np.fromfile(path, dtype=np.uint8),cv2.IMREAD_UNCHANGED)
+    return img
+
+# Pillow → OpenCV
+def pil2cv(image):
+    ''' PIL型 -> OpenCV型 '''
+    new_image = np.array(image, dtype=np.uint8)
+    if new_image.ndim == 2:  # モノクロ
+        pass
+    elif new_image.shape[2] == 3:  # カラー
+        new_image = cv2.cvtColor(new_image, cv2.COLOR_RGB2BGR)
+    elif new_image.shape[2] == 4:  # 透過
+        new_image = cv2.cvtColor(new_image, cv2.COLOR_RGBA2BGRA)
+    return new_image
+
+# OpenCV → Pillow
+def cv2pil(image):
+    ''' OpenCV型 -> PIL型 '''
+    new_image = image.copy()
+    if new_image.ndim == 2:  # モノクロ
+        pass
+    elif new_image.shape[2] == 3:  # カラー
+        new_image = cv2.cvtColor(new_image, cv2.COLOR_BGR2RGB)
+    elif new_image.shape[2] == 4:  # 透過
+        new_image = cv2.cvtColor(new_image, cv2.COLOR_BGRA2RGBA)
+    new_image = Image.fromarray(new_image)
+    return new_image
+
+
 def repaired_position():
     root.update_idletasks()
     ws=root.winfo_screenwidth()
@@ -2011,8 +2095,12 @@ def listener_window():
             return
         if key == keyboard.Key.space and ctrl==1 and shift==1:
             if root.state() == "normal":
+                if show_center==1:
+                    repaired_position()
                 frame_delete()
             else:
+                if show_center==1:
+                    repaired_position()
                 root.deiconify()
                 combobox_frame.focus_set()
 
@@ -2230,6 +2318,8 @@ def taskarea():
         root.deiconify()
         if buttonY["state"] =="normal":
             buttonY.invoke()
+        if show_center==1:
+            repaired_position()
         dist_button[str(item)]()
 
     if not os.path.exists(os.getcwd()+"/config/task_button.txt"):
@@ -3022,7 +3112,7 @@ def qr_generate():
     frame = ttk.Frame(root, padding=12)
 
     def qr_show():
-        try:
+        #try:
             x=clip.paste()
             img = qrcode.make(x)
             folder_path = os.getcwd()+"/temp1/qr_temp"
@@ -3037,8 +3127,8 @@ def qr_generate():
             canvas_img= ImageTk.PhotoImage(pil_img1)
             canvas.canvas_img = canvas_img
             canvas.create_image(pil_img1.width*0.5,pil_img1.height*0.5,image=canvas_img)
-        except:
-            messagebox.showerror("エラー","うまくQRコードを作成できませんでした")
+        #except:
+        #    messagebox.showerror("エラー","うまくQRコードを作成できませんでした")
 
     def qr_save():
         try:
@@ -5706,58 +5796,66 @@ def gif_create():
     button.grid(row=4,column=0,columnspan=2)
 
 def img_blank():
-    global frame,buttonY
+    global frame, buttonY
     main_frame_delete()
     frame = ttk.Frame(root, padding=4)
 
     def add_margin(drop):
         try:
-            if var.get()==1:
-                color=(255,255,255)
-            elif var.get()==2:
-                color=(0,0,0)
-            width=int(entry_w.get())
-            height=int(entry_h.get())
-            files=drop.data.replace("{","").replace("}","").replace("\\","/")
-            file_list=file_mult(files)
+            if var.get() == 1:
+                color = (255, 255, 255)  # 白
+            elif var.get() == 2:
+                color = (0, 0, 0)  # 黒
+            elif var.get() == 3:
+                color = None  # 透明
+            width = int(entry_w.get())
+            height = int(entry_h.get())
+            files = drop.data.replace("{", "").replace("}", "").replace("\\", "/")
+            file_list = file_mult(files)
             for x in file_list:
-                name=os.path.basename(x)
-                pil_img=Image.open(x)
+                name = os.path.basename(x)
+                pil_img = Image.open(x)
+                name_1=os.path.splitext(name)[0]
                 old_w, old_h = pil_img.size
-                if old_w<=width and old_h<=height:
-                    result = Image.new(pil_img.mode, (width, height),color)
-                    result.paste(pil_img, (int((width-old_w)/2), int((height-old_h)/2)))
-                    result.save(os.path.dirname(x)+"/"+"blank_"+name)
+                if old_w <= width and old_h <= height:
+                    if color is None:
+                        result = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+                    else:
+                        result = Image.new(pil_img.mode, (width, height), color)
+                    result.paste(pil_img, (int((width - old_w) / 2), int((height - old_h) / 2)))
+                    result.save(os.path.dirname(x) + "/blank_" + name_1+".png")
                 else:
                     messagebox.showerror('エラー', '元画像より大きくしてください')
         except:
             messagebox.showerror('エラー', '作成できませんでした')
         messagebox.showinfo('完了', '終了しました')
 
-    label_w=ttk.Label(frame,text="枠追加後横幅(px)：")
-    label_h=ttk.Label(frame,text="枠追加後縦幅(px)：")
-    entry_w=ttk.Entry(frame,width=30)
-    entry_h=ttk.Entry(frame,width=30)
-    label=ttk.Label(frame,text="ここに画像ファイルを\nドロップしてください",font=("Helvetica", 16))
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+    label_w = ttk.Label(frame, text="枠追加後横幅(px)：")
+    label_h = ttk.Label(frame, text="枠追加後縦幅(px)：")
+    entry_w = ttk.Entry(frame, width=30)
+    entry_h = ttk.Entry(frame, width=30)
+    label = ttk.Label(frame, text="ここに画像ファイルを\nドロップしてください", font=("Helvetica", 16))
+    buttonX = ttk.Checkbutton(frame, text=main_checkbox_name, onvalue=1, offvalue=0, variable=window_front, command=execute)
+    buttonY = Button(frame, text="戻る", command=lambda: main_frame(2), font=("Helvetica", 7), bg="gray", fg="white")
     frame.drop_target_register(DND_FILES)
-    frame.dnd_bind('<<Drop>>',add_margin)
-    var=IntVar()
+    frame.dnd_bind('<<Drop>>', add_margin)
+    var = IntVar()
     var.set(1)
-    color_button1=ttk.Radiobutton(frame,text="白",variable=var,value=1)
-    color_button2=ttk.Radiobutton(frame,text="黒",variable=var,value=2)
+    color_button1 = ttk.Radiobutton(frame, text="白", variable=var, value=1)
+    color_button2 = ttk.Radiobutton(frame, text="黒", variable=var, value=2)
+    color_button3 = ttk.Radiobutton(frame, text="透明", variable=var, value=3)
 
     frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    label_w.grid(row=1,column=0)
-    label_h.grid(row=2,column=0)
-    entry_w.grid(row=1,column=1)
-    entry_h.grid(row=2,column=1)
-    color_button1.grid(row=3,column=0)
-    color_button2.grid(row=3,column=1)
-    label.grid(row=4,column=0,columnspan=2)
+    buttonX.grid(row=0, column=2)
+    buttonY.grid(row=0, column=0)
+    label_w.grid(row=1, column=0)
+    label_h.grid(row=2, column=0)
+    entry_w.grid(row=1, column=2)
+    entry_h.grid(row=2, column=2)
+    color_button1.grid(row=3, column=0)
+    color_button2.grid(row=3, column=1)
+    color_button3.grid(row=3, column=2)
+    label.grid(row=5, column=0, columnspan=3)
 
 def image_set():
     global frame,buttonY
@@ -9418,7 +9516,7 @@ def pdf_text():
     frame = ttk.Frame(root)
 
     def dnd(drop):
-        try:
+        #try:
             file1=drop.data.replace("{","").replace("}","").replace("\\","/")
             reader = pypdf.PdfReader(file1)
             number_of_pages = len(reader.pages)
@@ -9427,13 +9525,13 @@ def pdf_text():
             box=ScrolledText(root1,width=60,height=30)
             root1.attributes("-topmost",True)
             box.pack()
-            for i in range(number_of_pages+1):
+            for i in range(number_of_pages):
                 page = reader.pages[i]
                 text = f"ページ{i+1}\n"+page.extract_text()+"\n"
                 box.insert("end",text)
             messagebox.showinfo("完了","テキストを抽出しました")
-        except:
-            messagebox.showerror("エラー","失敗しました")
+        #except:
+        #    messagebox.showerror("エラー","失敗しました")
 
     buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
@@ -10543,8 +10641,8 @@ def voice_concat():
         entry2.insert(0,x)
 
 
-    label1=ttk.Label(frame,text="前半の動画をここにドロップ：")
-    label2=ttk.Label(frame,text="後半の動画をここにドロップ：")
+    label1=ttk.Label(frame,text="前半の音声をここにドロップ：")
+    label2=ttk.Label(frame,text="後半の音声をここにドロップ：")
     entry1=ttk.Entry(frame,width=20)
     entry2=ttk.Entry(frame,width=20)
     button=ttk.Button(frame,text="結合",command=voice_concat_top)
@@ -13763,7 +13861,7 @@ def json_yaml():
 
 
     buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
     var=IntVar()
     var.set(0)
     radio1=ttk.Radiobutton(frame,text="JSON→YAML",value=0,variable=var)
@@ -14046,7 +14144,7 @@ def pdf_search():
 
     label1=ttk.Label(frame,text="PDFを含むフォルダを\nドロップしてください",font=("Helvetica", 20))
     buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(1),font=("Helvetica", 7),bg="gray",fg="white")
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
     frame.drop_target_register(DND_FILES)
     frame.dnd_bind('<<Drop>>',pdf_search1)
     label2=ttk.Label(frame,text="検索ワード：")
@@ -14596,6 +14694,387 @@ def csv_md():
     buttonY.grid(row=0,column=0)
     label.grid(row=1,column=0,columnspan=2)
     button.grid(row=2,column=0,columnspan=2)
+
+def copy_replace():
+    global frame,buttonY
+
+    def copy_replace1():
+
+        def copy_replace2():
+            clip.copy(box.get("1.0", "end -1c"))
+            messagebox.showinfo("完了","クリップボードにコピーしました")
+            root1.destroy()
+
+        text=clip.paste()
+        root1=Toplevel()
+        root1.title("コピー書き換え")
+        root1.attributes('-topmost', True)
+
+        box=ScrolledText(root1,width=50,height=10)
+        box.insert(END,text)
+        box.pack(expand=True,fill="both")
+        button=ttk.Button(root1,text="書き換え",command=copy_replace2)
+        button.pack()
+
+
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='コピー書き換え',command=copy_replace1,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        copy_replace1()
+
+
+def rsa_encrypt():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+
+    def create_rsa_key():
+        # 鍵の生成
+        rsa_key = RSA.generate(2048)
+        path=filedialog.askdirectory()
+
+        # 公開鍵をファイルに保存
+        with open(path+"/public_key.pem", "wb") as f:
+            f.write(rsa_key.publickey().export_key())
+
+        # 秘密鍵をファイルに保存
+        with open(path+"/private_key.pem", "wb") as f:
+            f.write(rsa_key.export_key())
+
+    def drop_file(drop):
+        entry1.delete(0,END)
+        entry1.insert(END,drop.data.replace("{","").replace("}","").replace("\\","/"))
+
+
+    def change_frame():
+        if radio_var.get()==1:
+            label1.config(text="公開鍵ドロップ：")
+            label2.config(text="暗号化したいファイルを\nドロップしてください")
+            entry1.delete(0,END)
+
+        elif radio_var.get()==2:
+            label1.config(text="秘密鍵ドロップ：")
+            label2.config(text="復号化したいファイルを\nドロップしてください")
+            entry1.delete(0,END)
+
+    def rsa_encrypt1(drop):
+        path=drop.data.replace("{","").replace("}","").replace("\\","/")
+        if radio_var.get()==1:
+            try:
+                ext=os.path.splitext(path)[1]
+                name=os.path.splitext(path)[0]
+                file_name=name+ext
+                new_path=path.replace(file_name,name+"_"+ext[1:]+".bin")
+                aes_key = os.urandom(16)  # 16バイトのAES鍵を生成
+                public_key_path=entry1.get()
+                    # 対称鍵でファイルを暗号化
+                with open(path, 'rb') as f:
+                    data = f.read()
+                cipher_aes = AES.new(aes_key, AES.MODE_GCM)
+                cipher_aes.update(b'yukisarmyknife')  # 追加のデータを使用して認証タグを生成
+                encrypted_data, tag = cipher_aes.encrypt_and_digest(data)
+
+                # 暗号化された対称鍵をRSAで暗号化
+                with open(public_key_path, 'rb') as f:
+                    public_key = RSA.import_key(f.read())
+
+                cipher_rsa = PKCS1_OAEP.new(public_key)
+                encrypted_aes_key = cipher_rsa.encrypt(aes_key)
+
+                # 暗号化された対称鍵と暗号化されたデータを出力ファイルに書き込む
+                with open(new_path, 'wb') as f:
+                    f.write(encrypted_aes_key)
+                    f.write(cipher_aes.nonce)
+                    f.write(tag)
+                    f.write(encrypted_data)
+                messagebox.showinfo("完了","完了しました")
+            except:
+                messagebox.showerror("エラー","失敗しました")
+
+        elif radio_var.get()==2:
+            try:
+                ext=os.path.splitext(path)[1]
+                name=os.path.splitext(path)[0]
+                ext1=name.split("_")[-1]
+                origin_name=name.replace("_"+ext1,"")+"."+ext1
+                new_path=path.replace(name+ext,origin_name)
+                with open(path, 'rb') as f:
+                    # 暗号化された対称鍵と暗号化されたデータを読み込む
+                    encrypted_aes_key = f.read(256)  # RSA 2048ビット暗号化時の最大サイズ
+                    nonce = f.read(16)
+                    tag = f.read(16)
+                    encrypted_data = f.read()
+
+                # RSAで暗号化された対称鍵を復号化
+                with open(entry1.get(), 'rb') as f:
+                    private_key = RSA.import_key(f.read())
+
+                cipher_rsa = PKCS1_OAEP.new(private_key)
+                aes_key = cipher_rsa.decrypt(encrypted_aes_key)
+
+                # 対称鍵でデータを復号化
+                cipher_aes = AES.new(aes_key, AES.MODE_GCM, nonce=nonce)
+                cipher_aes.update(b'yukisarmyknife')  # 暗号化時と同じ追加データを使用して認証タグを生成
+
+                decrypted_data = cipher_aes.decrypt_and_verify(encrypted_data, tag)
+                with open(new_path, 'wb') as f:
+                    f.write(decrypted_data)
+                    messagebox.showinfo("完了","完了しました")
+            except:
+                messagebox.showerror("エラー","失敗しました")
+
+
+
+    radio_var=IntVar()
+    radio_var.set(1)
+    radio1=ttk.Radiobutton(frame,text="暗号化",value=1,variable=radio_var,command=change_frame)
+    radio2=ttk.Radiobutton(frame,text="復号化",value=2,variable=radio_var,command=change_frame)
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
+    button1=ttk.Button(frame,text="鍵生成",command=create_rsa_key)
+    label1=ttk.Label(frame,text="公開鍵ドロップ：")
+    entry1=ttk.Entry(frame,width=20)
+    label2=ttk.Label(frame,text="暗号化したいファイルを\nドロップしてください",font=("Helvetica", 16))
+    label1.drop_target_register(DND_FILES)
+    label1.dnd_bind('<<Drop>>',drop_file)
+    entry1.drop_target_register(DND_FILES)
+    entry1.dnd_bind('<<Drop>>',drop_file)
+    label2.drop_target_register(DND_FILES)
+    label2.dnd_bind('<<Drop>>',rsa_encrypt1)
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    button1.grid(row=1,column=0,columnspan=2)
+    radio1.grid(row=2,column=0)
+    radio2.grid(row=2,column=1)
+    label1.grid(row=3,column=0)
+    entry1.grid(row=3,column=1)
+    label2.grid(row=4,column=0,columnspan=2)
+
+def text_diff():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+
+    dmp = diff_match_patch.diff_match_patch()
+
+    def text_diff1():
+        text_1=text1.get("1.0", "end -1c")
+        text_2=text2.get("1.0", "end -1c")
+        diff = dmp.diff_main(text_1, text_2)
+        text3.config(state="normal")
+        text4.config(state="normal")
+        text3.delete("1.0", "end")
+        text4.delete("1.0", "end")
+        text3.tag_configure("r", foreground="#FF0000")
+        text4.tag_configure("g", foreground="#00FF00")
+
+        for i in diff:
+            if i[0] == 0:
+                text3.insert("end", i[1])
+                text4.insert("end", i[1])
+            elif i[0] == -1:
+                text3.insert("end", i[1], "r")
+            elif i[0] == 1:
+                text4.insert("end", i[1], "g")
+
+        text3.config(state="disabled")
+        text4.config(state="disabled")
+
+    text1=ScrolledText(frame,width=30,height=10)
+    text2=ScrolledText(frame,width=30,height=10)
+    button=ttk.Button(frame,text="比較",command=text_diff1,width=10)
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+    text3=ScrolledText(frame,width=30,height=10,state="disabled")
+    text4=ScrolledText(frame,width=30,height=10,state="disabled")
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    text1.grid(row=1,column=0)
+    text2.grid(row=1,column=1)
+    button.grid(row=2,column=0,columnspan=2)
+    text3.grid(row=3,column=0)
+    text4.grid(row=3,column=1)
+
+def image_round():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+    origin=None
+    canvas_img=None
+
+    def crop_circle(image, output_path):
+        # 画像の高さ, 幅を取得
+        height, width = image.shape[:2]
+        # 円の中心座標, 半径を計算
+        center = (width // 2, height // 2)
+        radius = min(center)
+        # 円形のマスクを作成
+        mask = np.zeros((height, width), dtype=np.uint8)
+        cv2.circle(mask, center, radius, (255, 255, 255), -1, lineType=cv2.LINE_AA)
+        # 透明チャンネルを作成
+        alpha = np.zeros((height, width), dtype=np.uint8)
+        alpha[:] = 255
+        # マスクと透明チャンネルを結合
+        result = cv2.merge([image, alpha])
+        # 外側のみを透明にする
+        result = cv2.bitwise_and(result, result, mask=mask)
+        # 結果を保存
+        retval, buf = cv2.imencode('*.png', result)
+        buf.tofile(output_path)
+        cv2.imwrite(output_path, result)
+
+    def pil2cv(image):
+        new_image = np.array(image, dtype=np.uint8)
+        if new_image.ndim == 2:  # モノクロ
+            pass
+        elif new_image.shape[2] == 3:  # カラー
+            new_image = cv2.cvtColor(new_image, cv2.COLOR_RGB2BGR)
+        elif new_image.shape[2] == 4:  # 透過
+            new_image = cv2.cvtColor(new_image, cv2.COLOR_RGBA2BGRA)
+        return new_image
+
+
+    def img_top(drop):
+        nonlocal canvas_img,pil_img,z,origin,pil_img_1
+        x=drop.data.replace("{","").replace("}","").replace("\\","/")
+        y= os.path.basename(x)
+        ext=os.path.splitext(y)[1]
+        z=x.replace(y,"crop_"+y)
+        z=z.replace(ext,".png")
+        try:
+            pil_img=pil_img_1=Image.open(x)
+        except:
+            messagebox.showerror("エラー",f"{x}\nをうまく開けませんでした")
+            return
+        if pil_img.width>pil_img.height:
+            origin=0
+            pil_img=pil_img.resize((int(ws/2),int(pil_img.height*((ws/2)/pil_img.width))),Image.LANCZOS)
+        elif pil_img.width<pil_img.height:
+            origin=1
+            pil_img=pil_img.resize((int(pil_img.width*((hs/2)/pil_img.height)),int(hs/2)),Image.LANCZOS)
+        elif pil_img.width==pil_img.height:
+            origin=2
+            pil_img=pil_img.resize((int(hs/2),int(hs/2)),Image.LANCZOS)
+        canvas.delete("all")
+        canvas_img= ImageTk.PhotoImage(pil_img)
+        canvas.create_image(pil_img.width/2,pil_img.height/2,image=canvas_img)
+        canvas.config(width=pil_img.width, height=pil_img.height)
+
+    def on_press(event):
+        canvas.delete("rect")
+        nonlocal start_x
+        nonlocal start_y
+        start_x = canvas.canvasx(event.x)
+        start_y = canvas.canvasy(event.y)
+
+    def on_move_press(event):
+        nonlocal end_x, end_y
+        end_x, end_y = event.x, event.y
+        canvas.delete("rect")
+        canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="lightgreen", tags="rect", width=1.5)
+
+    def on_release(event):
+        nonlocal end_x, end_y
+        end_x, end_y = event.x, event.y
+        canvas.delete("rect")
+        canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="lightgreen", tags="rect", width=1.5)
+
+    def triming():
+        nonlocal origin
+        try:
+            if origin==2:
+                start_x1=int(start_x*pil_img_1.height/int(hs/2))
+                start_y1=int(start_y*pil_img_1.height/int(hs/2))
+                end_x1=int(end_x*pil_img_1.height/int(hs/2))
+                end_y1=int(end_y*pil_img_1.height/int(hs/2))
+            elif origin==1:
+                start_x1=int(start_x*pil_img_1.width/int(pil_img_1.width*((hs/2)/pil_img_1.height)))
+                start_y1=int(start_y*pil_img_1.height/int(hs/2))
+                end_x1=int(end_x*pil_img_1.width/int(pil_img_1.width*((hs/2)/pil_img_1.height)))
+                end_y1=int(end_y*pil_img_1.height/int(hs/2))
+            elif origin==0:
+                start_x1=int(start_x*pil_img_1.width/int(ws/2))
+                start_y1=int(start_y*pil_img_1.height/int(pil_img_1.height*((ws/2)/pil_img_1.width)))
+                end_x1=int(end_x*pil_img_1.width/int(ws/2))
+                end_y1=int(end_y*pil_img_1.height/int(pil_img_1.height*((ws/2)/pil_img_1.width)))
+            if start_x1>end_x1:
+                start_x1,end_x1=end_x1,start_x1
+            if start_y1>end_y1:
+                start_y1,end_y1=end_y1,start_y1
+            crop=pil_img_1.crop((start_x1,start_y1,end_x1,end_y1))
+            #crop.save(z)
+            cv2_image=pil2cv(crop)
+            crop_circle(cv2_image,z)
+
+            messagebox.showinfo("終了","トリミング完了しました")
+        except:
+            messagebox.showerror("エラー","うまくトリミングできませんでした")
+
+    start_x=None
+    start_y=None
+    end_x=None
+    end_y=None
+    pil_img=None
+    z=None
+    pil_img_1=None
+    root.update()
+    frame.drop_target_register(DND_FILES)
+    frame.dnd_bind('<<Drop>>',img_top)
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    canvas=Canvas(frame,width=300,height=300,bg="gray")
+    button1=ttk.Button(frame,text="丸トリミング",command=triming)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+
+    canvas.bind("<ButtonPress-1>", on_press)
+    canvas.bind("<ButtonRelease-1>", on_release)
+    canvas.bind("<B1-Motion>", on_move_press)
+
+    frame.pack()
+    buttonX.pack(side=TOP)
+    buttonY.pack(side=TOP)
+    canvas.pack(expand=True,side=TOP,fill=BOTH)
+    button1.pack(side=TOP)
+
+def file_type():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+
+    def file_type1(drop):
+        try:
+            path=drop.data.replace("{","").replace("}","").replace("\\","/")
+            with open(path, "rb") as f:
+                res = m.identify_bytes(f.read())
+            messagebox.showinfo("ファイルの種類",res.output.ct_label)
+        except:
+            messagebox.showerror("エラー","失敗しました")
+
+    m = Magika()
+    label=ttk.Label(frame,text="ファイルの種類を調べる\n(ドロップしてください)",font=("Helvetica", 16))
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label.grid(row=1,column=0,columnspan=2)
+    frame.drop_target_register(DND_FILES)
+    frame.dnd_bind('<<Drop>>',file_type1)
+
+
+
 
 
 # GUI
