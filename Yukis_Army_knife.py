@@ -68,7 +68,7 @@ from bs4 import BeautifulSoup
 from moviepy.video.fx.mirror_x import mirror_x
 from moviepy.video.fx.mirror_y import mirror_y
 import ctypes
-from itertools import chain
+#from itertools import chain
 import math
 import string
 import pykakasi
@@ -120,10 +120,9 @@ from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Hash import SHA256
 import diff_match_patch
 from magika import Magika
-import sys as sys1
 
 
-version="6.4"
+version="6.5"
 
 class MyListBox(Listbox):
     def __init__(self, master, inlist, **kwargs):
@@ -302,6 +301,15 @@ class ScrolledTree(SortTreeview):
         self.frame.place(**kwargs)
 
 class Free_window(Toplevel):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Toplevelウィンドウにフォーカスが当たったときに親ウィンドウを非表示にする
+        if hide_mainwindow==1:
+            self.bind("<FocusIn>", hide_parent)
+
+        # Toplevelウィンドウからフォーカスが外れたときに親ウィンドウを再表示する
+        #self.bind("<FocusOut>", show_parent)
 
     def move_window(self,wiget):
         self.isMouseDown = False
@@ -1572,9 +1580,21 @@ def set_frame1(page_x):
         text="ファイル判別",
         command=file_type
     )
+    button189=ttk.Button(
+        frame_image3,
+        width=13,
+        text="WEBP圧縮",
+        command=webp_compress
+    )
+    button190=ttk.Button(
+        frame_other2,
+        width=13,
+        text="ファイル削除",
+        command=file_delete
+    )
 
 
-    kinou=188
+    kinou=190
 
     label_text=Label(frame_text,text="テキスト・情報",bg="green",fg="white")
     label_image=Label(frame_image,text="画像・PDF",bg="#800000",fg="white")
@@ -1789,7 +1809,11 @@ def set_frame1(page_x):
 
 
 # 共通機能
+def hide_parent(event=None):
+    root.iconify()  # 親ウィンドウを非表示にする
 
+def show_parent(event=None):
+    root.deiconify()  # 親ウィンドウを再表示する
 
 
 
@@ -1853,12 +1877,13 @@ def advanced_setting():
         adv_setting["auto_update_chack"]=var4.get()
         adv_setting["show_center"]=var5.get()
         adv_setting["intermediate_screen"]=var6.get()
+        adv_setting["hide_mainwindow"]=var7.get()
 
         with open(os.getcwd()+"/config/adv_setting.json", "w") as file:
             json.dump(adv_setting,file)
         messagebox.showinfo(title="保存", message="保存しました。\n再起動してください")
 
-    root1=Toplevel()
+    root1=Free_window()
     with open(os.getcwd()+"/config/adv_setting.json", "r") as file:
         adv_setting =json.load(file)
     if "width_num" not in adv_setting:
@@ -1873,6 +1898,8 @@ def advanced_setting():
         adv_setting["show_center"]=0
     if "intermediate_screen" not in adv_setting:
         adv_setting["intermediate_screen"]=1
+    if "hide_mainwindow" not in adv_setting:
+        adv_setting["hide_mainwindow"]=0
 
 
     root1.title("高度な設定")
@@ -1920,9 +1947,16 @@ def advanced_setting():
     label6.grid(row=5,column=0)
     check6.grid(row=5,column=1)
 
+    var7=IntVar()
+    var7.set(adv_setting["hide_mainwindow"])
+    label7=Label(root1,text="サブ画面アクティブ時にメイン画面を隠す：")
+    check7=Checkbutton(root1,variable=var7,onvalue=1,offvalue=0)
+    label7.grid(row=6,column=0)
+    check7.grid(row=6,column=1)
+
 
     button=ttk.Button(root1,text="保存",command=adv_setting_update)
-    button.grid(row=6,column=0,columnspan=2)
+    button.grid(row=7,column=0,columnspan=2)
 
 
 
@@ -1930,7 +1964,7 @@ def rgbToHex(rgb):
     return "#%02x%02x%02x" % rgb
 
 def home_page():
-    root1=Toplevel()
+    root1=Free_window()
     root1.title("ホームページ一覧")
     root1.attributes("-topmost", True)
     ws=root1.winfo_screenwidth()
@@ -2061,7 +2095,7 @@ def button_task_icon():
             file.write("")
     with open(os.getcwd()+"/config/task_button.txt", "r") as file:
         task_setting = file.read()
-    root1=Toplevel()
+    root1=Free_window()
     root1.title("トレイを設定")
     root1.attributes("-topmost", True)
 
@@ -2314,6 +2348,13 @@ def delete_folder(x):
 def taskarea():
     global icon,task_menu
 
+    toast = winotify.Notification(
+            title="Yukis Army knifeを起動しました",
+            msg="タスクトレイにアイコンが表示されています",
+            app_id="Yukis_Army_knife",
+        )
+    toast.show()
+
     def action_func(icon,item):
         root.deiconify()
         if buttonY["state"] =="normal":
@@ -2425,33 +2466,70 @@ def tikan():
     global frame,buttonY
     main_frame_delete()
     frame = ttk.Frame(root, padding=16)
-
-    def tikan1():
-        try:
-            x=clip.paste()
-            clip.copy(x.replace(str(t1.get()),str(t2.get())))
-            messagebox.showinfo("終了","終了しました")
-        except:
-            messagebox.showerror("エラー","置換に失敗しました")
-
-    t1 = StringVar()
-    t2 = StringVar()
-    entry1 = ttk.Entry(frame, textvariable=t1,width=45)
-    entry2 = ttk.Entry(frame, textvariable=t2,width=45)
-    button = ttk.Button(frame,text='置換',command=tikan1,takefocus=1)
-    label1 = ttk.Label(frame, text='置換される文字：')
-    label2 = ttk.Label(frame, text='置換する文字：')
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
-
     frame.pack()
+
+    def clip_replace():
+        # 入力された正規表現パターンと置換文字列を取得
+        pattern = pattern_entry.get()
+        replacement = replacement_entry.get()
+        text =clip.paste()
+
+        try:
+            # 正規表現を使用してテキストを置換
+            replaced_text = re.sub(pattern, replacement, text)
+            text_entry.delete("1.0", END)
+            text_entry.insert("1.0", replaced_text)
+        except re.error as e:
+            messagebox.showerror("正規表現エラー", e)
+
+    def replace_text():
+        pattern = pattern_entry.get()
+        replacement = replacement_entry.get()
+        text = text_entry.get("1.0",END)
+
+        try:
+            replaced_text = re.sub(pattern, replacement, text)
+            text_entry.delete("1.0", END)
+            text_entry.insert("1.0", replaced_text)
+        except re.error as e:
+            messagebox.showerror("正規表現エラー", e)
+
+    pattern_label = ttk.Label(frame, text="置換される文字列:")
+
+    pattern_entry = ttk.Entry(frame, width=50)
+
+    replacement_label = ttk.Label(frame, text="置換する文字列:")
+
+    replacement_entry = ttk.Entry(frame, width=50)
+
+    text_label = ttk.Label(frame, text="置換対象テキスト:")
+
+    text_entry =ScrolledText(frame, height=10, width=50,undo=True)
+
+    frameY=ttk.Frame(frame)
+    replace_button = ttk.Button(frameY, text="テキストを置換", command=replace_text)
+    replace_clip_button = ttk.Button(frameY, text="コピーの置換", command=clip_replace)
+
+    frameX=ttk.Frame(frame)
+    buttonX=ttk.Checkbutton(frameX,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frameX,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+    button_X=ttk.Button(frame,text="コピー",command=lambda:clip.copy(text_entry.get("1.0",END)))
+
+    frameX.pack()
+
     buttonX.grid(row=0,column=1)
     buttonY.grid(row=0,column=0)
-    label1.grid(row=2,column=0)
-    entry1.grid(row=2,column=1)
-    label2.grid(row=3,column=0)
-    entry2.grid(row=3,column=1)
-    button.grid(row=4,column=0,columnspan=2)
+
+    pattern_label.pack()
+    pattern_entry.pack()
+    replacement_label.pack()
+    replacement_entry.pack()
+    frameY.pack()
+    replace_button.grid(row=0,column=1)
+    replace_clip_button.grid(row=0,column=0)
+    text_label.pack()
+    text_entry.pack()
+    button_X.pack()
 
 def serch():
     global frame,buttonY
@@ -3056,7 +3134,7 @@ def image_change():
                     x_gif=x.replace(youso,".gif")
                     img.save(x_gif,"gif")
                 if v2.get()==1:
-                    x_png=x.replace(youso,".png")
+                    x_png=x.replace(youso,".png",optimize=True)
                     img.save(x_png,"png")
                 if v3.get()==1:
                     x_ico=x.replace(youso,".ico")
@@ -3064,10 +3142,13 @@ def image_change():
                 if v4.get()==1:
                     x_jpg=x.replace(youso,".jpg")
                     img=img.convert("RGB")
-                    img.save(x_jpg,"jpeg",quality=100)
+                    img.save(x_jpg,"jpeg",quality=95, optimize=True)
                 if v5.get()==1:
                     x_pdf=x.replace(youso,".pdf")
                     img.save(x_pdf,"pdf")
+                if v6.get()==1:
+                    x_webp=x.replace(youso,".webp")
+                    img.save(x_webp,"webp")
             except:
                 messagebox.showerror("エラー",f"{x}\nを変換できませんでした")
         messagebox.showinfo("終了","変換終了しました")
@@ -3085,6 +3166,8 @@ def image_change():
     cb4=ttk.Checkbutton(frame,text="JPEG",variable=v4, onvalue=1, offvalue=0)
     v5=IntVar()
     cb5=ttk.Checkbutton(frame,text="PDF",variable=v5, onvalue=1, offvalue=0)
+    v6=IntVar()
+    cb6=ttk.Checkbutton(frame,text="WEBP",variable=v6, onvalue=1, offvalue=0)
     label=ttk.Label(frame,text="ここにファイルを\nドロップしてください",font=("Helvetica", 16))
     buttonX=ttk.Checkbutton(
     frame,
@@ -3097,14 +3180,15 @@ def image_change():
     buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
 
     frame.pack()
-    buttonX.grid(row=0,column=1,columnspan=4)
+    buttonX.grid(row=0,column=1,columnspan=5)
     buttonY.grid(row=0,column=0)
     cb1.grid(row=1,column=0)
     cb2.grid(row=1,column=1)
     cb3.grid(row=1,column=2)
     cb4.grid(row=1,column=3)
     cb5.grid(row=1,column=4)
-    label.grid(row=2,column=0,columnspan=5)
+    cb6.grid(row=1,column=5)
+    label.grid(row=2,column=0,columnspan=6)
 
 def qr_generate():
     global frame,buttonY
@@ -3119,7 +3203,7 @@ def qr_generate():
             make_folder(folder_path)
             z=folder_path+"/temp.png"
             img.save(z)
-            root2=Toplevel()
+            root2=Free_window()
             root2.title("QRコード")
             canvas=Canvas(root2,width=img.size[0],height=img.size[1])
             canvas.pack(expand = True, fill = BOTH)
@@ -3190,7 +3274,7 @@ def qr_reader():
             root.iconify()
             make_folder(os.getcwd()+"/temp1/qr_img")
             n=pyautogui.screenshot(os.getcwd()+'/temp1/qr_img/temp.png')
-            root1=Toplevel()
+            root1=Free_window()
 
             def start():
                 nonlocal pil_img,pil_img1,canvas_img
@@ -3580,15 +3664,13 @@ def img_press():
 
     def change_ratio():
         if var.get()==0:
-            label1.configure(text="圧縮率(%)")
+            label1.config(text="%")
             entry.delete(0, END)
             entry.insert(END,"50")
-            label2.configure(text="")
         elif var.get()==1:
-            label1.configure(text="色数(256以下)")
+            label1.config(text="色")
             entry.delete(0, END)
             entry.insert(END,"256")
-            label2.configure(text="＊JPG画像では失敗するので注意してください")
 
     def img_press1(drop):
         file=drop.data.replace("{","").replace("}","").replace("\\","/")
@@ -3602,25 +3684,17 @@ def img_press():
                     make_folder(os.getcwd()+"/temp1/img_compress")
                     name_press=x.replace(name,"press_"+name)
                     youso1=youso.replace(".","")
-                    if youso==".jpg" or youso==".jpeg":
-                        img.save(name_press,"jpeg",quality=int(entry.get()),optimize=True)
-                    else:
-                        img.save(os.getcwd()+"/temp1/img_compress/temp.jpg","jpeg",quality=int(entry.get()),optimize=True)
-                        img_press=Image.open(os.getcwd()+"/temp1/img_compress/temp.jpg")
-                        img_press.save(name_press,format=youso1)
-                        os.remove(os.getcwd()+"/temp1/img_compress/temp.jpg")
+                    img.save(name_press,"jpeg",quality=int(entry.get()),optimize=True)
                 elif var.get()==1:
-                    img=Image.open(x)
+                    img_press=Image.open(x)
                     name=os.path.basename(x)
                     youso=os.path.splitext(name)[1]
-                    make_folder(os.getcwd()+"/temp1/img_compress")
-                    img.save(os.getcwd()+"/temp1/img_compress/temp.png")
-                    img_press=Image.open(os.getcwd()+"/temp1/img_compress/temp.png")
                     img_press=img_press.quantize(int(entry.get()))
+                    #img_press=img_press.convert("P",palette=Image.ADAPTIVE,colors=int(entry.get()))
                     name_press=x.replace(name,"press_"+name)
                     youso1=youso.replace(".","")
-                    img_press.save(name_press,format=youso1)
-                    os.remove(os.getcwd()+"/temp1/img_compress/temp.png")
+                    img_press.save(name_press,format=youso1,optimize=True)
+
             except:
                 messagebox.showerror("エラー",f"{x}\nをうまく圧縮できませんでした")
         messagebox.showinfo("終了","圧縮完了しました")
@@ -3635,9 +3709,8 @@ def img_press():
     entry.insert(END,"50")
     var=IntVar()
     var.set(0)
-    radio1=ttk.Radiobutton(frame,text="画質圧縮",variable=var,value=0,command=change_ratio)
-    radio2=ttk.Radiobutton(frame,text="色圧縮",variable=var,value=1,command=change_ratio)
-    label2=ttk.Label(frame,text="")
+    radio1=ttk.Radiobutton(frame,text="画質圧縮(JPEG)",variable=var,value=0,command=change_ratio)
+    radio2=ttk.Radiobutton(frame,text="色圧縮(PNG)",variable=var,value=1,command=change_ratio)
 
     frame.pack()
     buttonX.grid(row=0,column=1)
@@ -3647,7 +3720,6 @@ def img_press():
     label1.grid(row=2,column=1)
     entry.grid(row=2,column=0)
     label.grid(row=3,column=0,columnspan=2)
-    label2.grid(row=4,column=0,columnspan=2)
 
 def mouse_click():
     global frame,buttonY
@@ -3913,7 +3985,7 @@ def red_sheet():
 
     def red_sheet1():
         try:
-            root1 = Toplevel()
+            root1 = Free_window()
             root1.title('赤シート')
             root1.attributes("-topmost", True)
             frame_1 = ttk.Frame(root1, style="Transparent.TFrame", width="400", height="300")
@@ -4009,7 +4081,7 @@ def exif():
 
     def print_exif(exif):
         if exif:
-            root1 = Toplevel()
+            root1 = Free_window()
             root1.title("EXIF")
             frame_1=ttk.Frame(root1,padding=12)
             box=ScrolledText(root1,width=50,height=30,font=(u'メイリオ',8))
@@ -4417,7 +4489,7 @@ def front_window():
                 toast = winotify.Notification(
                         title="最前面の固定の解除",
                         msg=class_name+"の固定を解除しました",
-                        app_id="yuki_tool",
+                        app_id="Yuki's Army knife",
                     )
                 toast.show()
             else:
@@ -4527,7 +4599,7 @@ def screen_memo():
                 n=int(entry.get())/100
                 root2.destroy()
                 triming()
-            root2= Toplevel()
+            root2= Free_window()
             root2.attributes('-topmost', '1')
             frame2=ttk.Frame(root2, padding=3)
             label=ttk.Label(root2,text="拡大・縮小の倍率を入力してください(%)")
@@ -4954,7 +5026,7 @@ def voice_cut():
     label.grid(row=3,column=0,columnspan=4)
 
 def dumy_human():
-    root1 = Toplevel()
+    root1 = Free_window()
     root1.title('ダミー作成結果')
     frame1=ttk.Frame(root1, padding=0)
     root1.attributes('-topmost', '1')
@@ -5075,7 +5147,7 @@ def dumy_human():
     Button.grid(row=9,column=0,columnspan=2)
 
 def clock():
-    root1 = Toplevel()
+    root1 = Free_window()
     root1.title('時計')
     frame_1=ttk.Frame(root1, padding=0)
     root1.attributes('-topmost', '1')
@@ -5253,7 +5325,7 @@ def sum_paste():
     checkbox.grid(row=3,column=0)
 
 def copy_paste():
-    root1 = Toplevel()
+    root1 = Free_window()
     root1.title('連続コピペ')
     frame_1=ttk.Frame(root1, padding=0)
     root1.attributes('-topmost', '1')
@@ -5341,7 +5413,7 @@ def length_ruler():
         make_folder(os.getcwd()+"/temp1/length")
         pyautogui.screenshot(os.getcwd()+"/temp1/length/temp.png")
         root.deiconify()
-        root1 = Toplevel()
+        root1 = Free_window()
         root1.title('長さ測定')
         frame1=ttk.Frame(root1, padding=0)
         root1.attributes('-fullscreen', True)
@@ -5612,7 +5684,7 @@ def password():
 
 def color_bullet():
     a=colorchooser.askcolor(title="色を選択")
-    root1=Toplevel()
+    root1=Free_window()
     x=(ws/2)-450
     y=(hs/2)-300
     root1.geometry('+%d+%d'%(x,y))
@@ -6623,7 +6695,7 @@ def image_info():
             size=img.size
             format1=img.format
             format2=img.format_description
-            root1=Toplevel()
+            root1=Free_window()
             root1.attributes("-topmost", True)
             root1.title("情報")
             frame1=ttk.Frame(root1)
@@ -6953,7 +7025,7 @@ def color_code():
                 r = int(color_code[1:3], 16)
                 g = int(color_code[3:5], 16)
                 b = int(color_code[5:7], 16)
-                root2=Toplevel()
+                root2=Free_window()
                 root2.title("変換結果")
                 root2.geometry('+%d+%d'%(x,y))
                 root2.attributes("-topmost", True)
@@ -6965,7 +7037,7 @@ def color_code():
             elif entry1.get()=="" and entry2_r.get()!="" and entry2_g.get()!="" and entry2_b.get()!="":
                 rgb=[int(entry2_r.get()),int(entry2_g.get()),int(entry2_b.get())]
                 hex_code = '#{:02x}{:02x}{:02x}'.format(rgb[0], rgb[1], rgb[2])
-                root2=Toplevel()
+                root2=Free_window()
                 root2.title("変換結果")
                 root2.geometry('+%d+%d'%(x,y))
                 root2.attributes("-topmost", True)
@@ -7014,51 +7086,49 @@ def translate_text():
     frame = ttk.Frame(root, padding=4)
 
     def translate_text2():
-        def trans_2():
-            clip.copy(box1.get("1.0",END))
-            root2.destroy()
-            translate_lang()
-        root2=Toplevel()
-        root2.attributes("-topmost", True)
-        root2.title("翻訳")
-        root2.geometry('+%d+%d'%(x,y))
-        label_2=ttk.Label(root2,text="翻訳する文字を入れてください")
-        box1=ScrolledText(root2,width=40,height=20)
-        button_2=ttk.Button(root2,text="翻訳",command=trans_2)
-        label_2.pack(side=TOP)
-        box1.pack(side=TOP,expand=True,fill=BOTH)
-        button_2.pack(side=TOP)
+
+        clip.copy(text1.get("1.0",END))
+        translate_lang()
 
     def translate_lang():
         try:
             translator = Translator()
             text=clip.paste()
-            if box1.get()=="auto":
+            input_num=lang_list.index(box1.get())
+            output_num=lang1.index(box2.get())
+            input_text=lang2[input_num]
+            output_text=lang2[output_num+1]
+
+            if input_text=="auto":
                 lang=translator.detect(text).lang
             else:
-                lang=box1.get()
-            text1=translator.translate(text, src=lang, dest=box2.get()).text
+                lang=input_text
+            text1=translator.translate(text, src=lang, dest=output_text).text
             lang_name = LANGUAGES.get(lang)
-            root1=Toplevel()
+            root1=Free_window()
             root1.title("翻訳結果")
             root1.geometry('+%d+%d'%(x,y))
             root1.attributes("-topmost", True)
             box=ScrolledText(root1,width=40,height=20)
-            label=ttk.Label(root1,text=f"{lang_name}→{LANGUAGES.get(box2.get())}",font=("Helvetica", 12))
+            label=ttk.Label(root1,text=f"{lang_name}→{LANGUAGES.get(output_text)}",font=("Helvetica", 12))
             box.insert(END,text1)
             button_n=ttk.Button(root1,text="コピー",command=lambda:[clip.copy(text1),
                                                                 messagebox.showinfo("完了","コピーしました")])
             label.pack(side=TOP)
             box.pack(side=TOP,expand=True,fill=BOTH)
             button_n.pack(side=TOP)
+
         except:
             messagebox.showerror("エラー","失敗しました")
 
 
-    input_lang=["auto","ja","en"]
-    output_lang=["ja","en"]
+    #input_lang=["auto","ja","en"]
+    #output_lang=["ja","en"]
     lang1=["英語","日本語","スペイン語","ポルトガル語","ドイツ語","フランス語","イタリア語","ロシア語","アラビア語","トルコ語","韓国語","中国語（簡体字）","中国語（繁体字）","ヒンディー語","ベンガル語","ウクライナ語","ギリシャ語","オランダ語","チェコ語","ポーランド語","タイ語","スウェーデン語","ルーマニア語","フィンランド語","ノルウェー語","デンマーク語","クロアチア語","インドネシア語","フィリピン語","ベトナム語"]
-    lang2=["en","ja","es","pt","de","fr","it","ru","ar","tr","ko","zh-CN","zh-TW","hi","bn","uk","el","nl","cs","pl","th","sv","ro","fi","no","da","hr","id","tl","vi"]
+    lang2=["auto","en","ja","es","pt","de","fr","it","ru","ar","tr","ko","zh-CN","zh-TW","hi","bn","uk","el","nl","cs","pl","th","sv","ro","fi","no","da","hr","id","tl","vi"]
+    lang_list=["自動","英語","日本語"]
+    input_lang=lang_list
+    output_lang=lang1
 
 
     box1=ttk.Combobox(frame,values=input_lang,width=8,state="readonly")
@@ -7072,6 +7142,7 @@ def translate_text():
     box2.current(0)
     box1.configure(state="readonly")
     button1=ttk.Button(frame,text="手動入力翻訳",command=translate_text2)
+    text1=ScrolledText(frame,width=40,height=20)
 
     frame.pack()
     buttonX.grid(row=0,column=1,columnspan=2)
@@ -7082,6 +7153,7 @@ def translate_text():
     box2.grid(row=2,column=1)
     button.grid(row=3,column=0)
     button1.grid(row=3,column=1)
+    text1.grid(row=4,column=0,columnspan=2)
 
 def pass_check():
     global frame,buttonY
@@ -7173,7 +7245,7 @@ def site_title():
             if title==None:
                 messagebox.showinfo("結果","タイトルを取得できませんでした")
             else:
-                root1=Toplevel()
+                root1=Free_window()
                 root1.title("結果")
                 root1.configure(bg="gray")
                 root1.geometry('+%d+%d'%(x,y))
@@ -7215,7 +7287,7 @@ def site_title():
         url_title()
 
 def network_monitor():
-    root1=Toplevel()
+    root1=Free_window()
     frame_1=ttk.Frame(root1)
     root1.attributes("-topmost", True)
     root1.title("ネットワークモニター")
@@ -7278,7 +7350,7 @@ def network_monitor():
             url1 = f"https://ipapi.co/{record_ip}/json/"
             response1 = requests.get(url1)
             data1 = response1.json()
-            root2=Toplevel()
+            root2=Free_window()
             root2.attributes("-topmost", True)
             pmenu = Menu(root2, tearoff=0)
             root2.bind("<Button-3>", showMenu)
@@ -7757,7 +7829,7 @@ def net_info():
                 district = data['district']
                 zip_1= data['zip']
                 org= data['org']
-                root2 = Toplevel()
+                root2 = Free_window()
                 root2.title("IP情報")
                 root2.attributes("-topmost", True)
                 root2.geometry('+%d+%d'%(x,y))
@@ -8392,7 +8464,7 @@ def address_english():
 def input_stop():
     global frame,buttonY
     def input_stop1():
-        root1 = Toplevel()
+        root1 = Free_window()
         root.iconify()
 
         AllKeySet = {
@@ -8500,7 +8572,7 @@ def renban_list():
                 #else:
                 end=start+" "+x
                 new_text.append(end)
-            root2=Toplevel()
+            root2=Free_window()
             root2.title("連番リスト")
             root2.attributes("-topmost", True)
             box1=ScrolledText(root2,width=60,height=30)
@@ -9520,7 +9592,7 @@ def pdf_text():
             file1=drop.data.replace("{","").replace("}","").replace("\\","/")
             reader = pypdf.PdfReader(file1)
             number_of_pages = len(reader.pages)
-            root1=Toplevel()
+            root1=Free_window()
             root1.title("PDFからテキスト抽出")
             box=ScrolledText(root1,width=60,height=30)
             root1.attributes("-topmost",True)
@@ -9738,7 +9810,7 @@ def cursive():
         try:
             text=box.get( 0., END ).rstrip()
             text1=cursive_change(text)
-            root1=Toplevel()
+            root1=Free_window()
             root1.title("変換結果")
             root1.attributes("-topmost",True)
             root1.geometry('+%d+%d'%(x,y))
@@ -9956,7 +10028,7 @@ def color_picker():
     buttonX.grid(row=0,column=1)
     label1.grid(row=1,column=0,columnspan=2)
 
-    root1 = Toplevel()
+    root1 = Free_window()
     label2 = Label(root1, text="", font=("Helvetica", 15))
     label2.pack()
     label3 = Label(root1, text="", font=("Helvetica", 15))
@@ -9993,7 +10065,7 @@ def magnifier():
     img_double_size = img_size * 0.5
     tk_image = None
     long_s=int(img_double_size/2)
-    root1 = Toplevel()
+    root1 = Free_window()
 
     def magnifier1():
         nonlocal img_double_size,long_s
@@ -10269,7 +10341,7 @@ def gif_video():
             full_img= ImageGrab.grab()
             button1["state"]="disabled"
             button2["state"]="normal"
-            root1=Toplevel()
+            root1=Free_window()
             root1.attributes("-topmost", True)
             def start():
                 nonlocal pil_img,pil_img1,canvas_img
@@ -10503,7 +10575,7 @@ def ogp():
             except:
                 messagebox.showerror("エラー","失敗しました")
 
-        root1=Toplevel()
+        root1=Free_window()
         root1.attributes("-topmost", True)
         canvas=Canvas(root1)
         entry1=ttk.Entry(root1,width=75)
@@ -10672,7 +10744,7 @@ def json_format():
     frame = ttk.Frame(root)
 
     def json_formatA(txt):
-        root1=Toplevel()
+        root1=Free_window()
         root1.attributes("-topmost", True)
         box=ScrolledText(root1,width=75,height=20)
         box.pack(expand=True,side=TOP,fill=BOTH)
@@ -10712,7 +10784,7 @@ def json_format():
     button.grid(row=2,column=0,columnspan=2)
 
 def env_word():
-    root1=Toplevel()
+    root1=Free_window()
     root1.attributes("-topmost", True)
     root1.title("環境変数")
     root1.geometry("850x500")
@@ -10809,7 +10881,7 @@ def seiwa():
 
 def wallpaper():
     global button143
-    root1=Toplevel()
+    root1=Free_window()
     root1.attributes("-topmost", True)
     root1.title("壁紙スライド")
 
@@ -11198,7 +11270,7 @@ def golden_ratio():
     entry2.grid(row=4,column=1)
 
 def piano():
-    root1=Toplevel()
+    root1=Free_window()
     root1.attributes("-topmost", True)
     root1.title("電子音ピアノ")
 
@@ -11687,7 +11759,7 @@ def word_book():
                         button_answer["text"]="答えを表示"
 
 
-                root1=Toplevel()
+                root1=Free_window()
                 root1.attributes("-topmost", True)
                 root1.title("単語帳")
                 frame_question=ttk.Frame(root1)
@@ -11788,7 +11860,7 @@ def color_name():
             messagebox.showerror("エラー","失敗しました")
             return
 
-        root1=Toplevel()
+        root1=Free_window()
         root1.attributes("-topmost", True)
         root1.title("色情報")
         menu=[["名前コピー",lambda:clip.copy(name)],
@@ -12000,7 +12072,7 @@ def auto_oparation():
                         tree.configure_arr(action_list)
                         break
             action_name=search.get()
-            root2=Toplevel()
+            root2=Free_window()
             ws=root2.winfo_screenwidth()
             hs=root2.winfo_screenheight()
             x2=(ws/2)-400
@@ -12021,7 +12093,7 @@ def auto_oparation():
                 root2.destroy()
 
             action_name=search.get()
-            root2=Toplevel()
+            root2=Free_window()
             ws=root2.winfo_screenwidth()
             hs=root2.winfo_screenheight()
             x2=(ws/2)-400
@@ -12619,7 +12691,7 @@ def mouse_highlight():
         root1.destroy()
 
 
-    root1=Toplevel(root)
+    root1=Free_window(root)
     root1.geometry("100x100")
     root1.attributes("-topmost", True)
     canvas=Canvas(root1)
@@ -13049,7 +13121,7 @@ def markdown_edit():
 
     num=0.0
     html=""
-    root1 = Toplevel(root)
+    root1 = Free_window(root)
     root1.geometry("1500x600")
     root1.title("Markdown Editor")
     menubar = Menu(root1)
@@ -13140,7 +13212,7 @@ def totp_generator():
             root.iconify()
             make_folder(os.getcwd()+"/temp1/qr_img")
             n=pyautogui.screenshot(os.getcwd()+'/temp1/qr_img/temp.png')
-            root1=Toplevel()
+            root1=Free_window()
 
             def start():
                 nonlocal pil_img,pil_img1,canvas_img
@@ -13306,7 +13378,7 @@ def totp_generator():
             qr.make(fit=True)
             img = qr.make_image(fill_color="black", back_color="white")
             img.save(os.getcwd()+"/temp1/qr_img/temp.png")
-            root1=Toplevel()
+            root1=Free_window()
             root1.title("QRコード")
             # 最前面
             root1.attributes('-topmost', True)
@@ -13832,7 +13904,7 @@ def json_yaml():
             elif var.get()==1:
                 dict_data = yaml.load(data, Loader=yaml.FullLoader)
                 data1 = json.dumps(dict_data, indent=2)
-            root1=Toplevel()
+            root1=Free_window()
             root1.title("変換結果")
             root1.attributes('-topmost', True)
             text=ScrolledText(root1,width=50,height=20)
@@ -14125,7 +14197,7 @@ def pdf_search():
                             x=x.replace("\\","/")
                             tree_list.append([name,i+1,x])
 
-            root1=Toplevel()
+            root1=Free_window()
             root1.title("検索結果")
             root1.attributes('-topmost', True)
             label_t=ttk.Label(root1,text=f"検索テキスト：{entry.get()}　　検索結果：{len(tree_list)}件")
@@ -14272,7 +14344,7 @@ def text_image():
         # テキストの描画
         draw.text((x, y), text, font=font, fill=(0, 0, 0))  # テキストの色を指定
 
-        root1=Toplevel()
+        root1=Free_window()
         root1.title("画像")
         root1.attributes('-topmost', True)
         canvas=Canvas(root1)
@@ -14344,7 +14416,7 @@ def thumbnail_md():
     button.grid(row=3,column=0,columnspan=2)
 
 def text_template():
-    root1=Toplevel()
+    root1=Free_window()
     root1.title("テキストテンプレート")
     root1.attributes('-topmost', True)
 
@@ -14706,7 +14778,7 @@ def copy_replace():
             root1.destroy()
 
         text=clip.paste()
-        root1=Toplevel()
+        root1=Free_window()
         root1.title("コピー書き換え")
         root1.attributes('-topmost', True)
 
@@ -15073,6 +15145,107 @@ def file_type():
     frame.drop_target_register(DND_FILES)
     frame.dnd_bind('<<Drop>>',file_type1)
 
+def webp_compress():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+
+    def check_button():
+        if lossless.get()==1:
+            label1["text"]="圧縮度："
+        elif lossless.get()==0:
+            label1["text"]="品質："
+
+    def webp_compress1(drop):
+        files=drop.data.replace("{","").replace("}","").replace("\\","/")
+        file_list=file_mult(files)
+        for file in file_list:
+            name=os.path.basename(file)
+            ext=os.path.splitext(name)[1]
+            img=Image.open(file)
+            name=name.replace(ext,".webp")
+            name1=file.replace(name,"compress_"+name)
+            img.save(name1, "WEBP", quality=quality.get(),lossless=lossless.get(),method=6)
+        messagebox.showinfo("完了","完了しました")
+
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+    quality=IntVar()
+    quality.set(75)
+    lossless=IntVar()
+    lossless.set(0)
+    label1=ttk.Label(frame,text="品質：")
+    entry1=ttk.Entry(frame,textvariable=quality,width=5)
+    label2=ttk.Label(frame,text="ロスレス：")
+    check1=ttk.Checkbutton(frame,variable=lossless,onvalue=1,offvalue=0,command=check_button)
+    label=ttk.Label(frame,text="WEBPファイルを\nドロップしてください",font=("Helvetica", 16))
+    frame.drop_target_register(DND_FILES)
+    frame.dnd_bind('<<Drop>>',webp_compress1)
+
+    frame.pack()
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label1.grid(row=1,column=0)
+    entry1.grid(row=1,column=1)
+    label2.grid(row=2,column=0)
+    check1.grid(row=2,column=1)
+    label.grid(row=3,column=0,columnspan=2)
+
+def file_delete():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+    frame.pack()
+
+    def drop_file(drop):
+        path=drop.data.replace("{","").replace("}","").replace("\\","/")
+        entry1.delete(0,END)
+        entry1.insert(END,path)
+
+    def file_delete1():
+        directory=entry1.get()
+        pattern=entry2.get()
+        for filename in os.listdir(directory):
+            # ファイル名が正規表現に一致するか確認
+            if re.match(pattern, filename):
+                # 一致するファイルを削除
+                if var1.get()==1:
+                    if os.path.isfile(os.path.join(directory, filename)):
+                        os.remove(os.path.join(directory, filename))
+                # ディレクトリかどうかをチェック
+                if var2.get()==1:
+                    if os.path.isdir(os.path.join(directory, filename)):
+                        shutil.rmtree(os.path.join(directory, filename))
+        messagebox.showinfo("完了","完了しました")
+
+
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
+    label1=ttk.Label(frame,text="フォルダをドロップ：")
+    entry1=ttk.Entry(frame,width=40)
+    label2=ttk.Label(frame,text="削除するファイル名（正規表現）：")
+    entry2=ttk.Entry(frame,width=40)
+    button=ttk.Button(frame,text="削除",command=file_delete1)
+    label1.drop_target_register(DND_FILES)
+    label1.dnd_bind('<<Drop>>',drop_file)
+    entry1.drop_target_register(DND_FILES)
+    entry1.dnd_bind('<<Drop>>',drop_file)
+    var1=IntVar()
+    var1.set(1)
+    var2=IntVar()
+    var2.set(1)
+    check1=ttk.Checkbutton(frame,text="ファイル削除",onvalue=1,offvalue=0,variable=var1)
+    check2=ttk.Checkbutton(frame,text="フォルダ削除",onvalue=1,offvalue=0,variable=var2)
+
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label1.grid(row=1,column=0)
+    entry1.grid(row=1,column=1)
+    label2.grid(row=2,column=0)
+    entry2.grid(row=2,column=1)
+    check1.grid(row=3,column=0)
+    check2.grid(row=3,column=1)
+    button.grid(row=4,column=0,columnspan=2)
 
 
 
@@ -15101,7 +15274,8 @@ if not os.path.exists(os.getcwd()+"/config/adv_setting.json"):
           "multi_window":0,
           "auto_update_chack":0,
           "show_center":0,
-          "intermediate_screen":1}
+          "intermediate_screen":1,
+          "hide_mainwindow":0,}
     with open(os.getcwd()+"/config/adv_setting.json", "w") as file:
         json.dump(data, file)
 with open(os.getcwd()+"/config/adv_setting.json", "r") as file:
@@ -15130,6 +15304,10 @@ if "intermediate_screen" in adv_setting:
     intermediate_screen=adv_setting["intermediate_screen"]
 else:
     intermediate_screen=1
+if "hide_mainwindow" in adv_setting:
+    hide_mainwindow=adv_setting["hide_mainwindow"]
+else:
+    hide_mainwindow=0
 
 if multi_window==0:
     WindowName = "Yuki's army knife"
@@ -15206,6 +15384,5 @@ if auto_update_chack==1:
 
 # app_global_setting
 mause_highlight_hwnd=0
-
 
 root.mainloop()
