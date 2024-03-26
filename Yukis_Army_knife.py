@@ -17,10 +17,9 @@ import qrcode
 import cv2
 import numpy as np
 from moviepy.editor import concatenate_audioclips
-from moviepy.editor import sys
+import sys
 from moviepy.editor import concatenate_videoclips
 from moviepy.editor import VideoFileClip
-#from moviepy.editor import *
 import keyboard as key
 import pyautogui
 import threading
@@ -68,7 +67,6 @@ from bs4 import BeautifulSoup
 from moviepy.video.fx.mirror_x import mirror_x
 from moviepy.video.fx.mirror_y import mirror_y
 import ctypes
-#from itertools import chain
 import math
 import string
 import pykakasi
@@ -83,7 +81,6 @@ from urllib.parse import urljoin,unquote
 from database import *
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3
-#import platform
 import base64
 import pystray
 import win32com.client
@@ -114,15 +111,18 @@ from moviepy.video.fx.invert_colors import invert_colors
 from moviepy.audio.fx.audio_fadein import audio_fadein
 from moviepy.audio.fx.audio_fadeout import audio_fadeout
 import yaml
-#import pytesseract
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Hash import SHA256
 import diff_match_patch
 from magika import Magika
+from pygments import highlight
+from pygments.lexers import get_lexer_by_name
+from pygments.formatters import ImageFormatter
+from pygments.styles import STYLE_MAP
+from pygments.lexers import get_all_lexers
 
-
-version="6.5"
+version="6.6"
 
 class MyListBox(Listbox):
     def __init__(self, master, inlist, **kwargs):
@@ -1592,9 +1592,26 @@ def set_frame1(page_x):
         text="ファイル削除",
         command=file_delete
     )
+    button191=ttk.Button(
+        frame_other1,
+        width=13,
+        text="プロセス優先度",
+        command=process_priority
+    )
+    button192=ttk.Button(
+        frame_image3,
+        width=13,
+        text="コード画像化",
+        command=code_image
+    )
+    button193=ttk.Button(
+        frame_image3,
+        width=13,
+        text="画像比較",
+        command=image_compare
+    )
 
-
-    kinou=190
+    kinou=193
 
     label_text=Label(frame_text,text="テキスト・情報",bg="green",fg="white")
     label_image=Label(frame_image,text="画像・PDF",bg="#800000",fg="white")
@@ -1831,7 +1848,6 @@ def cv2_save(path):
 
 # Pillow → OpenCV
 def pil2cv(image):
-    ''' PIL型 -> OpenCV型 '''
     new_image = np.array(image, dtype=np.uint8)
     if new_image.ndim == 2:  # モノクロ
         pass
@@ -1843,7 +1859,6 @@ def pil2cv(image):
 
 # OpenCV → Pillow
 def cv2pil(image):
-    ''' OpenCV型 -> PIL型 '''
     new_image = image.copy()
     if new_image.ndim == 2:  # モノクロ
         pass
@@ -1881,13 +1896,14 @@ def advanced_setting():
 
         with open(os.getcwd()+"/config/adv_setting.json", "w") as file:
             json.dump(adv_setting,file)
-        messagebox.showinfo(title="保存", message="保存しました。\n再起動してください")
+        messagebox.showinfo(title="保存", message="保存しました。\n再起動されます")
+        restart()
 
     root1=Free_window()
     with open(os.getcwd()+"/config/adv_setting.json", "r") as file:
         adv_setting =json.load(file)
     if "width_num" not in adv_setting:
-        adv_setting["width_num"]=3
+        adv_setting["width_num"]=4
     if "front_screen" not in adv_setting:
         adv_setting["front_screen"]=1
     if "multi_window" not in adv_setting:
@@ -1943,7 +1959,7 @@ def advanced_setting():
     var6=IntVar()
     var6.set(adv_setting["intermediate_screen"])
     label6=Label(root1,text="一部機能で中間画面を表示するか：")
-    check6=Checkbutton(root1,variable=var6,onvalue=1,offvalue=0)
+    check6=Checkbutton(root1,variable=var6,onvalue=0,offvalue=1)
     label6.grid(row=5,column=0)
     check6.grid(row=5,column=1)
 
@@ -1992,7 +2008,7 @@ def button_task_icon():
 
         messagebox.showinfo(title="終了", message="再起動したあとに\nタスクトレイに表示されます。")
         root1.destroy()
-        #restart()
+        restart()
 
     def list_delete():
         nonlocal task_setting
@@ -2087,8 +2103,6 @@ def button_task_icon():
         var=select_num_get()
         listbox.config(listvariable=var)
         listbox.update()
-
-
 
     if not os.path.exists(os.getcwd()+"/config/task_button.txt"):
         with open(os.getcwd()+"/config/task_button.txt", "w") as file:
@@ -2536,30 +2550,28 @@ def serch():
     main_frame_delete()
     frame = ttk.Frame(root, padding=4)
     def serch1(x):
+        if var.get()==1:
+            query=clip.paste()
+        elif var.get()==0:
+            query=entry.get()
         if x==0:
-            x=clip.paste()
-            req= requests.get('https://www.google.co.jp/search', params={'q': x})
+            req= requests.get('https://www.google.co.jp/search', params={'q': query})
             webbrowser.open(urllib.parse.unquote(req.url))
         elif x==1:
-            x=clip.paste()
-            req= requests.get('https://www.google.co.jp/search', params={'q': x,'tbm':'isch'})
+            req= requests.get('https://www.google.co.jp/search', params={'q': query,'tbm':'isch'})
             webbrowser.open(urllib.parse.unquote(req.url))
         elif x==2:
-            x=clip.paste()
-            req= requests.get('https://ja.wikipedia.org/wiki/', params={'search': x})
+            req= requests.get('https://ja.wikipedia.org/wiki/', params={'search': query})
             webbrowser.open(urllib.parse.unquote(req.url))
         elif x==3:
-            query = clip.paste()
             query_encoded = urllib.parse.quote(query)
             url = f'https://scholar.google.com/scholar?q={query_encoded}'
             req = requests.get(url)
             webbrowser.open(urllib.parse.unquote(req.url))
         elif x==4:
-            query = clip.paste()
             url = f'https://you.com/search?q={query}&fromSearchBar=true&tbm=youchat&'
             webbrowser.open(url)
         elif x==5:
-            query = clip.paste()
             url=f"https://www.youtube.com/results?search_query={query}"
             webbrowser.open(url)
 
@@ -2571,6 +2583,11 @@ def serch():
     button4=ttk.Button(frame,text="論文検索",command=lambda:serch1(3),width=10)
     button5=ttk.Button(frame,text="AI検索",command=lambda:serch1(4),width=10)
     button6=ttk.Button(frame,text="YouTube",command=lambda:serch1(5),width=10)
+    var=IntVar()
+    var.set(1)
+    radio1=ttk.Radiobutton(frame,text="テキストボックスから検索",variable=var,value=0)
+    radio2=ttk.Radiobutton(frame,text="クリップボードから検索",variable=var,value=1)
+    entry=ttk.Entry(frame,width=50)
 
     frame.pack()
     buttonX.grid(row=0,column=1,columnspan=2)
@@ -2581,6 +2598,9 @@ def serch():
     button3.grid(row=2,column=0)
     button4.grid(row=2,column=1)
     button6.grid(row=2,column=2)
+    radio2.grid(row=3,column=0)
+    radio1.grid(row=3,column=2)
+    entry.grid(row=4,column=0,columnspan=3)
 
 def IP():
     global frame,buttonY
@@ -3134,8 +3154,8 @@ def image_change():
                     x_gif=x.replace(youso,".gif")
                     img.save(x_gif,"gif")
                 if v2.get()==1:
-                    x_png=x.replace(youso,".png",optimize=True)
-                    img.save(x_png,"png")
+                    x_png=x.replace(youso,".png")
+                    img.save(x_png,"png",optimize=True)
                 if v3.get()==1:
                     x_ico=x.replace(youso,".ico")
                     img.save(x_ico,"ico")
@@ -9771,15 +9791,18 @@ def explore_restart():
         os.system("taskkill /f /im explorer.exe")
         os.system("start explorer.exe")
 
-    main_frame_delete()
-    frame = ttk.Frame(root, padding=16)
-    button=ttk.Button(frame,text='エクスプローラー再起動',command=explorer_restart1,padding=[80,10,80,10])
-    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
-    buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
-    frame.pack()
-    buttonX.grid(row=0,column=1)
-    buttonY.grid(row=0,column=0)
-    button.grid(row=1,column=0,columnspan=2)
+    if intermediate_screen==0:
+        main_frame_delete()
+        frame = ttk.Frame(root, padding=16)
+        button=ttk.Button(frame,text='エクスプローラー再起動',command=explorer_restart1,padding=[80,10,80,10])
+        buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+        buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
+        frame.pack()
+        buttonX.grid(row=0,column=1)
+        buttonY.grid(row=0,column=0)
+        button.grid(row=1,column=0,columnspan=2)
+    elif intermediate_screen==1:
+        explorer_restart1()
 
 def godmode():
     path = os.path.join(os.getcwd(), "temp1", "god_mode")
@@ -13205,6 +13228,7 @@ def heic_convert():
     label.grid(row=1,column=0,columnspan=2)
 
 def totp_generator():
+    global frame,buttonY
 
     def add_data():
         nonlocal savejson
@@ -13444,7 +13468,7 @@ def totp_generator():
         messagebox.showerror("エラー","パスワードが間違っています")
         return
 
-    global frame,buttonY
+
     main_frame_delete()
     frame = ttk.Frame(root, padding=12)
     if len(savejson)==0:
@@ -15247,6 +15271,252 @@ def file_delete():
     check2.grid(row=3,column=1)
     button.grid(row=4,column=0,columnspan=2)
 
+def process_priority():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+    frame.pack()
+
+    def process_priority1(path):
+        check_num=0
+        for proc in psutil.process_iter(['pid', 'name']):
+        # 指定したプロセス名と一致する場合
+            if proc.info['name'] == path:
+                if var.get()=="通常":
+                    priority=psutil.NORMAL_PRIORITY_CLASS
+                elif var.get()=="やや高":
+                    priority=psutil.ABOVE_NORMAL_PRIORITY_CLASS
+                elif var.get()=="高":
+                    priority=psutil.HIGH_PRIORITY_CLASS
+                elif var.get()=="やや低":
+                    priority=psutil.BELOW_NORMAL_PRIORITY_CLASS
+                elif var.get()=="低":
+                    priority=psutil.IDLE_PRIORITY_CLASS
+                try:
+                    p = psutil.Process(proc.info['pid'])
+                    # プロセスの優先度を変更
+                    p.nice(priority)
+                    check_num=1
+                except psutil.AccessDenied:
+                    check_num=2
+                except psutil.NoSuchProcess:
+                    check_num=3
+        if check_num==1:
+            messagebox.showinfo("完了",f"プロセス {path} の優先度を {var.get()} に設定しました。")
+        elif check_num==2:
+            messagebox.showerror("エラー",f"プロセス {path} の優先度を変更する権限がありません。")
+        elif check_num==3:
+            messagebox.showerror("エラー",f"プロセス {path} が見つかりませんでした。")
+
+    def stopping():
+        listener.stop()
+        t.join()
+        frame_delete()
+
+    def main_frame1(num):
+        listener.stop()
+        t.join()
+        root.protocol("WM_DELETE_WINDOW", frame_delete)
+        main_frame(num)
+
+    def key_check():
+        nonlocal listener
+        with keyboard.Listener(on_release=on_release) as listener:
+            listener.join()
+
+    def get_window_process_path(hwnd):
+        # ウィンドウのプロセスID取得
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        # プロセスIDからプロセス取得
+        process = psutil.Process(pid)
+        # プロセスの実行ファイルのパス取得
+        path = process.exe()
+
+        return path
+
+    def on_release(key):
+        nonlocal listener
+        try:
+            if key == keyboard.Key.pause:
+                # アクティブなウィンドウのハンドル
+                hwnd = win32gui.GetForegroundWindow()
+                window_title = win32gui.GetWindowText(hwnd)
+                if window_title != "":
+                    path = get_window_process_path(hwnd)
+                    if os.path.exists(path):
+                        # エクスプローラーを開いて、ファイル選択
+                        name=os.path.basename(path)
+                        process_priority1(name)
+                    else:
+                        messagebox.showerror('エラー', 'ウィンドウのパスを取得できませんでした')
+                else:
+                    messagebox.showerror('エラー', 'ウィンドウのパスを取得できませんでした')
+        except:
+            listener.join()
+            return
+
+    t=threading.Thread(target=key_check,daemon=True)
+    listener=None
+    label1=ttk.Label(frame,text="プロセス優先度")
+    var=StringVar()
+    var="通常"
+    radio1=ttk.Radiobutton(frame,text="通常",value="通常",variable=var)
+    radio2=ttk.Radiobutton(frame,text="やや高",value="やや高",variable=var)
+    radio3=ttk.Radiobutton(frame,text="高",value="高",variable=var)
+    radio4=ttk.Radiobutton(frame,text="やや低",value="やや低",variable=var)
+    radio5=ttk.Radiobutton(frame,text="低",value="低",variable=var)
+    #button1=ttk.Button(frame,text="ウィンドウから指定",command=window_set)
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame1(3),font=("Helvetica", 7),bg="gray",fg="white")
+    label=ttk.Label(frame,text="pauseでウィンドウを実行している\nファイルを直接開きます",font=("Helvetica", 16))
+
+    buttonX.grid(row=0,column=2)
+    buttonY.grid(row=0,column=0,columnspan=2)
+    label1.grid(row=1,column=0,columnspan=3)
+    radio1.grid(row=2,column=0)
+    radio2.grid(row=2,column=1)
+    radio3.grid(row=2,column=2)
+    radio4.grid(row=3,column=0)
+    radio5.grid(row=3,column=1)
+    #button1.grid(row=4,column=0,columnspan=3)
+    label.grid(row=4,column=0,columnspan=3)
+    root.protocol("WM_DELETE_WINDOW", stopping)
+    t.start()
+
+def code_image():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+    frame.pack()
+
+    def code_img():
+        try:
+            index_num=alias_list.index(box1.get())
+            lexer = get_lexer_by_name(alias_list1[index_num][0])
+            if var1.get()==1:
+                num_show=True
+            else:
+                num_show=False
+            formatter = ImageFormatter(style=box2.get(),
+                                    encoding='utf-8',
+                                    font_name='BIZ UDGothic & BIZ UDPGothic (TrueType);',
+                                    line_number_separator=False,
+                                    line_numbers=num_show,
+                                    )
+            path=filedialog.asksaveasfilename(defaultextension=".png",filetypes=[("PNG","*.png")],initialfile="code.png")
+            with open(path, 'wb') as f:
+                highlight(box3.get("1.0", "end-1c"), lexer, formatter, outfile=f)
+            messagebox.showinfo("完了","完了しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
+
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+
+    alias_list = [i[0] for i in get_all_lexers()]
+    alias_list1 = [i[1] for i in get_all_lexers()]
+    label1=ttk.Label(frame,text="言語を指定：")
+    box1=Searchbox(frame,values=alias_list,width=20)
+    label2=ttk.Label(frame,text="スタイルを指定：")
+    box2=ttk.Combobox(frame,values=list(STYLE_MAP.keys()),width=20,state="readonly")
+    box2.set("default")
+    label3=ttk.Label(frame,text="コードを入力：")
+    box3=ScrolledText(frame,width=30,height=10)
+    var1=IntVar()
+    var1.set(1)
+    check=ttk.Checkbutton(frame,text="行番号表示",onvalue=1,offvalue=0,variable=var1)
+
+
+    button=ttk.Button(frame,text="画像化",command=code_img)
+
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label1.grid(row=1,column=0)
+    box1.grid(row=1,column=1)
+    label2.grid(row=2,column=0)
+    box2.grid(row=2,column=1)
+    label3.grid(row=3,column=0,columnspan=2)
+    check.grid(row=4,column=0,columnspan=2)
+    box3.grid(row=5,column=0,columnspan=2)
+    button.grid(row=6,column=0,columnspan=2)
+
+def image_compare():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+    frame.pack()
+
+    def drop_file1(drop):
+        path=drop.data.replace("{","").replace("}","").replace("\\","/")
+        entry1.delete(0,END)
+        entry1.insert(END,path)
+
+    def drop_file2(drop):
+        path=drop.data.replace("{","").replace("}","").replace("\\","/")
+        entry2.delete(0,END)
+        entry2.insert(END,path)
+
+    def image_compare1():
+
+        def save_img():
+            try:
+                path=filedialog.asksaveasfilename(defaultextension=".png",filetypes=[("PNG","*.png")],initialfile="compare.png")
+                image_pil.save(path,"png",optimize=True)
+                messagebox.showinfo("完了","保存しました")
+            except:
+                messagebox.showerror("エラー","失敗しました")
+
+        try:
+            img1=cv2_save(entry1.get())
+            img2=cv2_save(entry2.get())
+            img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+            img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+            diff = cv2.absdiff(img1_gray, img2_gray)
+            thresh = 30
+            diff[diff < thresh] = 0
+            diff[diff >= thresh] = 255
+            contours, hierarchy = cv2.findContours(diff, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            for contour in contours:
+                (x, y, w, h) = cv2.boundingRect(contour)
+                cv2.rectangle(img1, (x, y), (x + w, y + h), (0, 0, 255), 2)
+
+            img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
+            image_pil = Image.fromarray(img1)
+            image_tk  = ImageTk.PhotoImage(image_pil)
+            root1=Free_window()
+            root1.title("比較結果")
+            canvas = Canvas(root1, width=image_pil.width, height=image_pil.height)
+            canvas.pack()
+            canvas.create_image(0, 0, image=image_tk, anchor='nw')
+            canvas.image = image_tk
+            RightClickMenu(canvas,[("保存",save_img)])
+        except:
+            messagebox.showerror("エラー","失敗しました")
+
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+    label1=ttk.Label(frame,text="比較元画像をドロップ：")
+    label2=ttk.Label(frame,text="比較先画像をドロップ：")
+    entry1=ttk.Entry(frame,width=20)
+    entry2=ttk.Entry(frame,width=20)
+    button=ttk.Button(frame,text="比較",command=image_compare1)
+
+    label1.drop_target_register(DND_FILES)
+    label1.dnd_bind('<<Drop>>',drop_file1)
+    entry1.drop_target_register(DND_FILES)
+    entry1.dnd_bind('<<Drop>>',drop_file1)
+    label2.drop_target_register(DND_FILES)
+    label2.dnd_bind('<<Drop>>',drop_file2)
+    entry2.drop_target_register(DND_FILES)
+    entry2.dnd_bind('<<Drop>>',drop_file2)
+
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label1.grid(row=1,column=0)
+    entry1.grid(row=1,column=1)
+    label2.grid(row=2,column=0)
+    entry2.grid(row=2,column=1)
+    button.grid(row=3,column=0,columnspan=2)
 
 
 
@@ -15269,7 +15539,7 @@ with open(os.getcwd()+"/config/style.txt", "r") as file:
     style_setting = file.read()
 
 if not os.path.exists(os.getcwd()+"/config/adv_setting.json"):
-    data={"width_num":3,
+    data={"width_num":4,
           "front_screen":1,
           "multi_window":0,
           "auto_update_chack":0,
@@ -15283,7 +15553,7 @@ with open(os.getcwd()+"/config/adv_setting.json", "r") as file:
 if "width_num" in adv_setting:
     main_frame_width=adv_setting["width_num"]
 else:
-    main_frame_width=3
+    main_frame_width=4
 if "front_screen" in adv_setting:
     front_screen=adv_setting["front_screen"]
 else:
