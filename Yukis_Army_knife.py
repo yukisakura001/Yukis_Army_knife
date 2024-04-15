@@ -121,8 +121,64 @@ from pygments.lexers import get_lexer_by_name
 from pygments.formatters import ImageFormatter
 from pygments.styles import STYLE_MAP
 from pygments.lexers import get_all_lexers
+from csscompressor import compress as css_compress
+import jsmin
+from htmlmin import minify as html_compress
+import pyzipper
 
-version="6.6"
+version="7.0"
+
+class ToolTip():
+    def __init__(self, widget, text="default tooltip"):
+        self.widget = widget
+        self.text = text
+        self.widget.bind("<Enter>", self.enter)
+        self.widget.bind("<Motion>", self.motion)
+        self.widget.bind("<Leave>", self.leave)
+        self.id = None
+        self.tw = None
+    def enter(self, event):
+        self.schedule()
+
+    def motion(self, event):
+        self.unschedule()
+        self.schedule()
+
+    def leave(self, event):
+        self.unschedule()
+        self.id = self.widget.after(100, self.hideTooltip)
+
+    def schedule(self):
+        if self.tw:
+            return
+        self.unschedule()
+        self.id = self.widget.after(100, self.showTooltip)
+
+    def unschedule(self):
+        id = self.id
+        self.id = None
+        if id:
+            self.widget.after_cancel(id)
+
+    def showTooltip(self):
+        id = self.id
+        self.id = None
+        if id:
+            self.widget.after_cancel(id)
+        x, y = self.widget.winfo_pointerxy()
+        self.tw = Toplevel(self.widget)
+        self.tw.wm_overrideredirect(True)
+        self.tw.attributes("-topmost", True)
+        self.tw.geometry(f"+{x+10}+{y+10}")
+        label = Label(self.tw, text=self.text, background="lightyellow",
+                         relief="solid", borderwidth=1, justify="left")
+        label.pack(ipadx=10)
+    def hideTooltip(self):
+        tw = self.tw
+        self.tw = None
+        if tw:
+            tw.destroy()
+
 
 class MyListBox(Listbox):
     def __init__(self, master, inlist, **kwargs):
@@ -405,6 +461,7 @@ def set_frame1(page_x):
     men2.add_command(label='モダンダーク', command=lambda:set_theme(14))
     men2.add_command(label='モダンライト', command=lambda:set_theme(15))
     men3.add_command(label='タスクアイコンに登録', command=button_task_icon)
+    men3.add_command(label='非表示にする機能を登録', command=del_func_set)
     men1.add_command(label='再起動', command=restart)
     men3.add_command(label='詳細設定', command=advanced_setting)
     men3.add_command(label='設定フォルダ', command=setting_folder)
@@ -471,7 +528,7 @@ def set_frame1(page_x):
         command=serch
     )
     button5=ttk.Button(
-        frame_text3,
+        frame_text1,
         width=13,
         text="抽選",
         command=choose
@@ -1610,8 +1667,20 @@ def set_frame1(page_x):
         text="画像比較",
         command=image_compare
     )
+    button194=ttk.Button(
+        frame_text3,
+        width=13,
+        text="webファイル圧縮",
+        command=web_compress
+    )
+    button195=ttk.Button(
+        frame_other2,
+        width=13,
+        text="パス付きzip作成",
+        command=zip_pass
+    )
 
-    kinou=193
+    kinou=195
 
     label_text=Label(frame_text,text="テキスト・情報",bg="green",fg="white")
     label_image=Label(frame_image,text="画像・PDF",bg="#800000",fg="white")
@@ -1724,9 +1793,12 @@ def set_frame1(page_x):
     frame_imageN3=1
     width_range=main_frame_width
     for d in range(1,kinou+1):
+
         if f"button{str(d)}" in globals():
             dist_button[globals()["button"+str(d)]["text"]]=globals()["button"+str(d)].invoke
             list_button.append(globals()["button"+str(d)]["text"])
+            if str(d) in del_func:
+                continue
             if check_frame(globals()["button"+str(d)])=="text1":
                 globals()["button"+str(d)].grid(row=frame_textN1//width_range,column=frame_textN1%width_range)
                 frame_textN1+=1
@@ -1766,6 +1838,8 @@ def set_frame1(page_x):
         else:
             dist_button[locals()["button"+str(d)]["text"]]=locals()["button"+str(d)].invoke
             list_button.append(locals()["button"+str(d)]["text"])
+            if str(d) in del_func:
+                continue
             if check_frame(locals()["button"+str(d)])=="text1":
                 locals()["button"+str(d)].grid(row=frame_textN1//width_range,column=frame_textN1%width_range)
                 frame_textN1+=1
@@ -1893,6 +1967,8 @@ def advanced_setting():
         adv_setting["show_center"]=var5.get()
         adv_setting["intermediate_screen"]=var6.get()
         adv_setting["hide_mainwindow"]=var7.get()
+        adv_setting["launcher_width"]=int(entry8.get())
+        adv_setting["launcher_height"]=int(entry9.get())
 
         with open(os.getcwd()+"/config/adv_setting.json", "w") as file:
             json.dump(adv_setting,file)
@@ -1916,6 +1992,10 @@ def advanced_setting():
         adv_setting["intermediate_screen"]=1
     if "hide_mainwindow" not in adv_setting:
         adv_setting["hide_mainwindow"]=0
+    if "launcher_width" not in adv_setting:
+        adv_setting["launcher_width"]=2
+    if "launcher_height" not in adv_setting:
+        adv_setting["launcher_height"]=5
 
 
     root1.title("高度な設定")
@@ -1970,9 +2050,23 @@ def advanced_setting():
     label7.grid(row=6,column=0)
     check7.grid(row=6,column=1)
 
+    label8=Label(root1,text="ランチャーの行：")
+    entry8=Spinbox(root1,width=10,from_=1,to=10,increment=1)
+    entry8.delete(0,"end")
+    entry8.insert(END,adv_setting["launcher_width"])
+    label8.grid(row=7,column=0)
+    entry8.grid(row=7,column=1)
+
+    label9=Label(root1,text="ランチャーの列：")
+    entry9=Spinbox(root1,width=10,from_=1,to=10,increment=1)
+    entry9.delete(0,"end")
+    entry9.insert(END,adv_setting["launcher_height"])
+    label9.grid(row=8,column=0)
+    entry9.grid(row=8,column=1)
+
 
     button=ttk.Button(root1,text="保存",command=adv_setting_update)
-    button.grid(row=7,column=0,columnspan=2)
+    button.grid(row=9,column=0,columnspan=2)
 
 
 
@@ -1988,19 +2082,160 @@ def home_page():
     x=(ws/2)-250
     y=(hs/2)-300
     root1.geometry('+%d+%d'%(x,y))
-    button1=ttk.Button(root1,text="配布ページ(最新VerDL・更新情報)",width=40,command=lambda:webbrowser.open("https://yukisakura.notion.site/Yuki-s-Army-knife-8b11161af892436a9dd9cfa64724dec9"))
+    button1=ttk.Button(root1,text="配布ページ(最新VerDL・更新情報)",width=40,command=lambda:webbrowser.open("https://github.com/yukisakura001/Yukis_Army_knife/releases"))
     button2=ttk.Button(root1,text="Github(ソースコード・歴代VerDL)",width=40,command=lambda:webbrowser.open("https://github.com/yukisakura001/Yukis_Army_knife"))
     button3=ttk.Button(root1,text="Twitter(更新情報)",width=40,command=lambda:webbrowser.open("https://twitter.com/yukisakura001"))
+    button4=ttk.Button(root1,text="Youtube",width=40,command=lambda:webbrowser.open("https://www.youtube.com/@yukisakura_pc"))
+    button5=ttk.Button(root1,text="ブログ",width=40,command=lambda:webbrowser.open("https://yukisakura001.github.io/"))
 
     button1.grid(row=0,column=1)
     button2.grid(row=1,column=1)
     button3.grid(row=2,column=1)
-
+    button4.grid(row=3,column=1)
+    button5.grid(row=4,column=1)
 
 
 def restart():
     subprocess.Popen(["Yukis_Army_knife.exe"])
     stop_tkinter()
+
+def del_func_set():
+
+    def click_close():
+
+        messagebox.showinfo(title="終了", message="再起動したあとに\n非表示になります。")
+        root1.destroy()
+        restart()
+
+    def list_delete():
+        nonlocal task_setting
+        try:
+            select_num = listbox.curselection()
+            func_delete_name=listbox.get(select_num[0])
+            func_delete_num=button_function_list.index(func_delete_name)+1
+        except:
+            return
+        res=messagebox.askquestion(title="削除確認", message="この機能をメイン画面に\n表示しますか？")
+        if res != "yes":
+            return
+        task_setting=task_setting.replace(str(func_delete_num)+"\n","")
+        with open(os.getcwd()+"/config/del_func.txt", "w") as file:
+            file.write(task_setting)
+        var=select_num_get()
+        listbox.config(listvariable=var)
+        listbox.update()
+
+    def swap_lines(text, line1, line2):
+        lines = text.split('\n')
+
+        try:
+            lines[line1], lines[line2] = lines[line2], lines[line1]
+        except IndexError:
+            messagebox.showinfo(title="エラー", message="選択した行が見つかりませんでした。")
+
+        new_text = '\n'.join(lines)
+
+        return new_text
+
+
+    def select_num_get():
+        select_num=[]
+        for i in task_setting.split("\n")[:-1]:
+            select_num.append(button_function_list[int(i)-1])
+        return StringVar(value=select_num)
+
+    def set_task_function(func_name):
+        nonlocal task_setting
+        try:
+            func_num=button_function_list.index(func_name)+1
+            task_setting=task_setting+str(func_num)+"\n"
+            with open(os.getcwd()+"/config/del_func.txt", "w") as file:
+                file.write(task_setting)
+            var=select_num_get()
+            listbox.config(listvariable=var)
+            listbox.update()
+        except:
+            messagebox.showinfo(title="エラー", message="機能が見つかりませんでした。/nもう一度入力を確かめてください。")
+            return
+
+    def showMenu(event):
+        try:
+            x, y = event.x, event.y
+            index = listbox.nearest(y)
+            if index != -1:
+                listbox.selection_clear(0, END)  # 一旦すべての選択を解除
+                listbox.selection_set(index)  # 指定されたアイテムを選択
+            pmenu.post(event.x_root, event.y_root)
+
+        except:
+            return
+
+    def move_up():
+        nonlocal task_setting
+        # 指定した行とその上の行を入れ替える
+        try:
+            select_num = listbox.curselection()
+        except:
+            return
+        if select_num[0]==0:
+            return
+        task_setting=swap_lines(task_setting,select_num[0],select_num[0]-1)
+        with open(os.getcwd()+"/config/del_func.txt", "w") as file:
+            file.write(task_setting)
+        var=select_num_get()
+        listbox.config(listvariable=var)
+        listbox.update()
+
+    def move_down():
+        nonlocal task_setting
+        # 指定した行とその下の行を入れ替える
+        try:
+            select_num = listbox.curselection()
+        except:
+            return
+        if select_num[0]==len(task_setting.split("\n"))-2:
+            return
+        task_setting=swap_lines(task_setting,select_num[0],select_num[0]+1)
+        with open(os.getcwd()+"/config/del_func.txt", "w") as file:
+            file.write(task_setting)
+        var=select_num_get()
+        listbox.config(listvariable=var)
+        listbox.update()
+
+    if not os.path.exists(os.getcwd()+"/config/del_func.txt"):
+        with open(os.getcwd()+"/config/del_func.txt", "w") as file:
+            file.write("")
+    with open(os.getcwd()+"/config/del_func.txt", "r") as file:
+        task_setting = file.read()
+    root1=Free_window()
+    root1.title("非表示を設定")
+    root1.attributes("-topmost", True)
+
+    var=select_num_get()
+
+    label1=Label(root1,text="非表示にする機能を登録してください。")
+    searchbox=Searchbox(root1,width=30,values=button_function_list)
+    button1=ttk.Button(root1,text="登録",command=lambda:set_task_function(searchbox.get()))
+    listbox=Listbox(root1,width=30,height=10,listvariable=var)
+
+    listbox.bind("<Button-3>", showMenu)
+    root1.protocol("WM_DELETE_WINDOW", click_close)
+    pmenu = Menu(root1, tearoff=0)
+    pmenu.add_command(label="削除", command=list_delete)
+    pmenu.add_command(label="上に移動",command=move_up)
+    pmenu.add_command(label="下に移動",command=move_down)
+
+    label1.pack()
+    searchbox.pack()
+    button1.pack()
+    listbox.pack(fill="both",expand=True)
+
+def check_window_existence(window_name):
+    for window in root.winfo_children():
+        if isinstance(window, Toplevel) and window.wm_title() == window_name:
+            return True
+    return False
+
 
 def button_task_icon():
 
@@ -2034,7 +2269,7 @@ def button_task_icon():
         try:
             lines[line1], lines[line2] = lines[line2], lines[line1]
         except IndexError:
-            print("指定した行が存在しません。")
+            messagebox.showinfo(title="エラー", message="選択した行が見つかりませんでした。")
 
         new_text = '\n'.join(lines)
 
@@ -2058,6 +2293,7 @@ def button_task_icon():
             listbox.config(listvariable=var)
             listbox.update()
         except:
+            messagebox.showinfo(title="エラー", message="機能が見つかりませんでした。/nもう一度入力を確かめてください。")
             return
 
     def showMenu(event):
@@ -2133,12 +2369,317 @@ def button_task_icon():
     listbox.pack(fill="both",expand=True)
 
 
+def launcher_screen():
+    # launch_dict={"1":[0,"名前","データ"],}
+    if not os.path.exists(os.getcwd()+"/config/launch.json"):
+        with open(os.getcwd()+"/config/launch.json", "w",encoding="utf-8") as file:
+            file.write("{}")
+    with open(os.getcwd()+"/config/launch.json", "r",encoding="utf-8") as f:
+        set_launch = json.load(f)
+    width_l=launcher_width
+    height_l=launcher_height
+    root_l=Toplevel()
+    root_l.title("YAkランチャー")
+    root_l.attributes("-topmost", True)
+    frame_main_l=ttk.Frame(root_l)
+    frame_main_l.pack(expand=True,fill="both")
+
+    class SHFILEINFO(ctypes.Structure):
+        _fields_ = [("hIcon", ctypes.wintypes.HICON),
+                    ("iIcon", ctypes.c_int),
+                    ("dwAttributes", ctypes.c_ulong),
+                    ("szDisplayName", ctypes.wintypes.WCHAR * 260),
+                    ("szTypeName", ctypes.wintypes.WCHAR * 80)]
+
+    SHGFI_ICON = 0x000000100
+    SHGFI_USEFILEATTRIBUTES = 0x000000010
+    FILE_ATTRIBUTE_NORMAL = 0x00000080
+
+    shell32 = ctypes.WinDLL('shell32')
+    shell32.SHGetFileInfoW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD, ctypes.POINTER(SHFILEINFO), ctypes.wintypes.UINT, ctypes.wintypes.UINT]
+    shell32.SHGetFileInfoW.restype = ctypes.wintypes.HANDLE
+
+    def get_folder_icon(folder_path):
+        shinfo = SHFILEINFO()
+        retval = shell32.SHGetFileInfoW(
+            folder_path, 0, ctypes.byref(shinfo),
+            ctypes.sizeof(shinfo), SHGFI_ICON
+        )
+        if retval:
+            return shinfo.hIcon
+        else:
+            return None
+
+    def get_icon(ext):
+        shinfo = SHFILEINFO()
+        retval = shell32.SHGetFileInfoW(
+            ext, FILE_ATTRIBUTE_NORMAL, ctypes.byref(shinfo),
+            ctypes.sizeof(shinfo), SHGFI_ICON | SHGFI_USEFILEATTRIBUTES
+        )
+        if retval:
+            return shinfo.hIcon
+        else:
+            return None
+
+    def icon_to_image(icon, size=(32, 32)):
+        hdc = ctypes.windll.user32.GetDC(0)
+        hbmp = ctypes.windll.gdi32.CreateCompatibleBitmap(hdc, size[0], size[1])
+
+        hmemdc = ctypes.windll.gdi32.CreateCompatibleDC(hdc)
+        ctypes.windll.gdi32.SelectObject(hmemdc, hbmp)
+        ctypes.windll.user32.DrawIconEx(hmemdc, 0, 0, icon, size[0], size[1], 0, None, 0x0003)
+        ctypes.windll.user32.DestroyIcon(icon)
+        ctypes.windll.gdi32.DeleteDC(hmemdc)
+
+        bitmap_bits = ctypes.create_string_buffer(size[0] * size[1] * 4)
+
+        # GetBitmapBitsを呼び出してバッファにビットを格納
+        ctypes.windll.gdi32.GetBitmapBits(hbmp, ctypes.sizeof(bitmap_bits), bitmap_bits)
+
+        # PILで画像を作成
+        image = Image.frombuffer(
+            'RGBA',
+            size,
+            bitmap_bits,
+            'raw',
+            'BGRA',
+            0,
+            1
+        )
+        ctypes.windll.gdi32.DeleteObject(hbmp)
+        ctypes.windll.user32.ReleaseDC(0, hdc)
+        return image
+
+    def exe_drop(path):
+        #try:
+            y=path
+            if os.path.isdir(y):
+                icon=get_folder_icon("")
+            else:
+                icon = get_icon(y) #""でドライブアイコン
+            if icon:
+                img = icon_to_image(icon)
+                return img
+
+    def get_url_title(url):
+        try:
+            response = requests.get(url)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            title = soup.title.string
+        except:
+            title=None
+        return title
+
+
+    def save_launch():
+        with open(os.getcwd()+"/config/launch.json", "w",encoding="utf-8") as f:
+            # jsonファイルに書き込む
+            json.dump(set_launch,f,ensure_ascii=False, indent=4)
+
+    def set_screen_launch():
+        for i in range(width_l):
+            for j in range(height_l):
+                if str(i*height_l+j) not in set_launch:
+                    locals()["button"+str(i*height_l+j)]=Button(frame_main_l,text="未登録",command=partial(set_func,i*height_l+j),width=150,height=70,bg="lightgray",image=icon_image_transparent,compound=TOP)
+                    locals()["button"+str(i*height_l+j)].image=icon_image_transparent
+                else:
+                    if set_launch[str(i*height_l+j)][0]==0:
+                        icon_image_set=icon_image1
+                    elif set_launch[str(i*height_l+j)][0]==1:
+                        icon_image_set=icon_image_net
+                    elif set_launch[str(i*height_l+j)][0]==2:
+                        icon_exe_img=exe_drop(set_launch[str(i*height_l+j)][2]).resize((48,48))
+                        icon_image_set=ImageTk.PhotoImage(icon_exe_img)
+
+                    locals()["button"+str(i*height_l+j)]=Button(frame_main_l,text=set_launch[str(i*height_l+j)][1][:12],command=partial(click_l,i*height_l+j),width=150,height=70,bg="lightgray",image=icon_image_set,compound=TOP,font=("Courier", 7))
+                    locals()["button"+str(i*height_l+j)].image=icon_image_set
+                    ToolTip1=ToolTip(locals()["button"+str(i*height_l+j)],set_launch[str(i*height_l+j)][1])
+                    RightClickMenu(locals()["button"+str(i*height_l+j)],[("削除",partial(delete_func,i*height_l+j)),("名前編集",partial(custom_func,i*height_l+j))])
+                locals()["button"+str(i*height_l+j)].grid(row=i,column=j)
+                locals()["button"+str(i*height_l+j)].drop_target_register(DND_FILES)
+                locals()["button"+str(i*height_l+j)].dnd_bind('<<Drop>>',partial(set_func1,i*height_l+j))
+
+    def delete_func(num):
+        set_launch.pop(str(num))
+        save_launch()
+        load_launch(num)
+
+    def custom_func(num):
+        def change_name():
+            set_launch[str(num)][1]=entry1.get()
+            save_launch()
+            load_launch(num)
+            messagebox.showinfo(title="変更", message="変更しました。")
+            root_l1.destroy()
+
+        root_l1=Toplevel()
+        root_l1.title("名前の変更")
+        root_l1.attributes("-topmost", True)
+        entry1=ttk.Entry(root_l1,width=30)
+        entry1.insert(END,set_launch[str(num)][1])
+        button1=ttk.Button(root_l1,text="変更",command=change_name)
+        entry1.pack()
+        button1.pack()
+
+    def load_launch(num):
+        nonlocal set_launch
+        with open(os.getcwd()+"/config/launch.json", "r",encoding="utf-8") as f:
+            set_launch = json.load(f)
+        children=frame_main_l.winfo_children()
+        for child in children:
+            child.destroy()
+        set_screen_launch()
+
+
+    def set_func1(num,drop):
+        nonlocal set_launch
+        path=drop.data.replace("{","").replace("}","").replace("\\","/")
+        name=os.path.basename(path)
+        set_launch[str(num)]=[2,name,path]
+        save_launch()
+        load_launch(num)
+
+
+    def set_func(func_num):
+        nonlocal set_launch
+
+        def change_func():
+            if var.get()==0:
+                entry1.grid_forget()
+                combo.grid(row=0,column=0)
+            else:
+                combo.grid_forget()
+                entry1.grid(row=0,column=0)
+
+        def set_yak():
+            nonlocal set_launch
+            if var.get()==0:
+                set_launch[str(func_num)]=[0,combo.get(),""]
+                save_launch()
+                load_launch(func_num)
+            elif var.get()==1:
+                title=get_url_title(entry1.get())
+                if title==None:
+                    title = urlparse(entry1.get())
+                set_launch[str(func_num)]=[1,f"{title}",entry1.get()]
+                save_launch()
+                load_launch(func_num)
+            elif var.get()==2:
+                name=os.path.basename(entry1.get())
+                set_launch[str(func_num)]=[2,name,entry1.get()]
+                save_launch()
+                load_launch(func_num)
+            messagebox.showinfo(title="登録", message="登録しました。")
+            root1.destroy()
+
+        root1=Toplevel()
+        root1.title("機能の設定")
+        root1.attributes("-topmost", True)
+        var=IntVar()
+        var.set(0)
+        frame_main_l1=ttk.Frame(root1)
+        frame_main_l1.pack(expand=True,fill="both")
+        radio1=ttk.Radiobutton(frame_main_l1,text="Yukis Army knifeの機能を登録",variable=var,value=0,command=change_func)
+        radio2=ttk.Radiobutton(frame_main_l1,text="サイトを登録",variable=var,value=1,command=change_func)
+        radio3=ttk.Radiobutton(frame_main_l1,text="ファイル・フォルダを登録",variable=var,value=2,command=change_func)
+        frame_l=ttk.Frame(root1)
+        combo=Searchbox(frame_l,width=30,values=button_function_list)
+        button1=ttk.Button(frame_l,text="登録",command=set_yak)
+        entry1=ttk.Entry(frame_l,width=30)
+        ws1=root1.winfo_width()
+        hs1=root1.winfo_height()
+        x1=(ws/2)-(ws1/2)
+        y1=(hs/2)-(hs1/2)
+        root1.geometry('+%d+%d'%(x1,y1))
+
+        radio1.pack()
+        radio2.pack()
+        radio3.pack()
+        frame_l.pack(expand=True,fill="both")
+        combo.grid(row=0,column=0)
+        button1.grid(row=1,column=0)
+
+
+    def click_l(func_key):
+        try:
+            if str(func_key) not in set_launch:
+                set_func()
+            # 機能のリストにあるなら分岐
+
+            elif set_launch[str(func_key)][0]==0:
+                # YAkの機能
+                root.deiconify()
+                buttonY.invoke()
+                dist_button[set_launch[str(func_key)][1]]()
+            elif set_launch[str(func_key)][0]==1:
+                # URL
+                webbrowser.open(set_launch[str(func_key)][2])
+            elif set_launch[str(func_key)][0]==2:
+                # ファイル
+                os.startfile(set_launch[str(func_key)][2])
+            root_l.destroy()
+        except:
+            messagebox.showinfo(title="エラー", message="機能が見つかりませんでした。")
+
+    img=Image.open(my_icon.get_img())
+    img=img.resize((48,48))
+    icon_image1=ImageTk.PhotoImage(img)
+    img1 = Image.new("RGBA", (48, 48), (0, 0, 0, 0))
+    icon_image_transparent=ImageTk.PhotoImage(img1)
+    icon_image_net=my_icon.get_photo_web()
+
+
+    for i in range(width_l):
+        for j in range(height_l):
+            if str(i*height_l+j) not in set_launch:
+                locals()["button"+str(i*height_l+j)]=Button(frame_main_l,text="未登録",command=partial(set_func,i*height_l+j),width=150,height=70,bg="lightgray",image=icon_image_transparent,compound=TOP)
+                locals()["button"+str(i*height_l+j)].image=icon_image_transparent
+            else:
+                if set_launch[str(i*height_l+j)][0]==0:
+                    icon_image_set=icon_image1
+                elif set_launch[str(i*height_l+j)][0]==1:
+                    icon_image_set=icon_image_net
+                elif set_launch[str(i*height_l+j)][0]==2:
+                    icon_exe_img=exe_drop(set_launch[str(i*height_l+j)][2]).resize((48,48))
+                    icon_image_set=ImageTk.PhotoImage(icon_exe_img)
+
+                locals()["button"+str(i*height_l+j)]=Button(frame_main_l,text=set_launch[str(i*height_l+j)][1][:12],command=partial(click_l,i*height_l+j),width=150,height=70,bg="lightgray",image=icon_image_set,compound=TOP,font=("Courier", 7))
+                locals()["button"+str(i*height_l+j)].image=icon_image_set
+                ToolTip1=ToolTip(locals()["button"+str(i*height_l+j)],set_launch[str(i*height_l+j)][1])
+                RightClickMenu(locals()["button"+str(i*height_l+j)],[("削除",partial(delete_func,i*height_l+j)),("名前編集",partial(custom_func,i*height_l+j))])
+            locals()["button"+str(i*height_l+j)].grid(row=i,column=j)
+            locals()["button"+str(i*height_l+j)].drop_target_register(DND_FILES)
+            locals()["button"+str(i*height_l+j)].dnd_bind('<<Drop>>',partial(set_func1,i*height_l+j))
+
+
+    root_l.update_idletasks()
+    ws=root.winfo_screenwidth()
+    hs=root.winfo_screenheight()
+    ws2, hs2 = pyautogui.position()
+    ws1=root_l.winfo_width()
+    hs1=root_l.winfo_height()
+    x=(ws/2)-(ws1/2)
+    y=(hs/2)-(hs1/2)
+    root_l.geometry('+%d+%d'%(x,y))
+
+    #def hide_window(event):
+    #    root_l.after(1000, check_mouse_position)
+#
+    #def check_mouse_position():
+    #    if root_l.winfo_pointerxy()[0] < root_l.winfo_x() or root_l.winfo_pointerxy()[0] > root_l.winfo_x() + root_l.winfo_width() \
+    #            or root_l.winfo_pointerxy()[1] < root_l.winfo_y() or root_l.winfo_pointerxy()[1] > root_l.winfo_y() + root_l.winfo_height():
+    #        root_l.destroy()
+    #frame_main_l.bind("<Leave>",hide_window )
+
+
+
 def listener_window():
-    global main_show_shrotcut
+    global main_show_shrotcut,shift
     ctrl=0
     shift=0
     def on_press(key):
-        nonlocal ctrl,shift
+        nonlocal ctrl
+        global  shift
         if main_show_shrotcut==1:
             return
         if key == keyboard.Key.space and ctrl==1 and shift==1:
@@ -2152,13 +2693,20 @@ def listener_window():
                 root.deiconify()
                 combobox_frame.focus_set()
 
+        if key == keyboard.Key.pause and shift==1:
+            if check_window_existence("YAkランチャー"):
+                pass
+            else:
+                launcher_screen()
+
         if key == keyboard.Key.ctrl_l:
             ctrl=1
         if key == keyboard.Key.shift:
             shift=1
 
     def on_release(key):
-        nonlocal ctrl,shift
+        nonlocal ctrl
+        global shift
         if key == keyboard.Key.ctrl_l:
             ctrl=0
         if key == keyboard.Key.shift:
@@ -2509,17 +3057,11 @@ def tikan():
             messagebox.showerror("正規表現エラー", e)
 
     pattern_label = ttk.Label(frame, text="置換される文字列:")
-
     pattern_entry = ttk.Entry(frame, width=50)
-
     replacement_label = ttk.Label(frame, text="置換する文字列:")
-
     replacement_entry = ttk.Entry(frame, width=50)
-
     text_label = ttk.Label(frame, text="置換対象テキスト:")
-
     text_entry =ScrolledText(frame, height=10, width=50,undo=True)
-
     frameY=ttk.Frame(frame)
     replace_button = ttk.Button(frameY, text="テキストを置換", command=replace_text)
     replace_clip_button = ttk.Button(frameY, text="コピーの置換", command=clip_replace)
@@ -4498,7 +5040,7 @@ def front_window():
     frame = ttk.Frame(root, padding=12)
 
     def on_release(key):
-        if key == keyboard.Key.pause:
+        if key == keyboard.Key.pause and shift==0:
             # アクティブなウィンドウ取得
             active_window = win32gui.GetForegroundWindow()
             class_name = win32gui.GetWindowText(active_window)
@@ -4760,7 +5302,7 @@ def window_path():
 
     def on_release(key):
         nonlocal listener
-        if key == keyboard.Key.pause:
+        if key == keyboard.Key.pause and shift==0:
             # アクティブなウィンドウのハンドル
             hwnd = win32gui.GetForegroundWindow()
             window_title = win32gui.GetWindowText(hwnd)
@@ -6605,7 +7147,13 @@ def compress():
         try:
             x=drop.data.replace("{","").replace("}","").replace("\\","/")
             if os.path.isfile(x):
-                messagebox.showinfo("終了","ファイルが設定されています。フォルダを設定してください")
+                with  zipfile.ZipFile(f"{os.path.splitext(x)[0]}.zip",
+                                        'w',
+                                        compression=zipfile.ZIP_LZMA,
+                                        ) as zf:
+                    zf.write(x, os.path.basename(x))
+                messagebox.showinfo("終了","圧縮完了しました")
+
             else:
                 def zip_folder(folder_path, zip_name):
                     with zipfile.ZipFile(zip_name, 'w',compression=zipfile.ZIP_DEFLATED,compresslevel=var.get()) as zipf:
@@ -6781,7 +7329,7 @@ def window_toumei():
 
 
     def on_release(key):
-        if key == keyboard.Key.pause:
+        if key == keyboard.Key.pause and shift==0:
             if entry.get()=="":
                 messagebox.showerror("エラー","透明度を入力してください")
             else:
@@ -8483,6 +9031,7 @@ def address_english():
 
 def input_stop():
     global frame,buttonY
+    NUM1=300
     def input_stop1():
         root1 = Free_window()
         root.iconify()
@@ -8500,8 +9049,8 @@ def input_stop():
         }
 
         # キー入力無効化
-        for keys in AllKeySet:
-            key.block_key(keys)
+        for i in range(NUM1):
+            key.block_key(i)
 
         def click_close():
             key.unhook_all()
@@ -9184,12 +9733,14 @@ def text_search():
         if keyword:
             start = "1.0"
             while True:
-                start = text.search(keyword, start, stopindex=END)  # 検索
+                countVar = StringVar()
+                start = text.search(keyword, start,regexp=True,stopindex=END,count=countVar)  # 検索
                 if not start:
                     break
-                end = f"{start}+{len(keyword)}c"  # 終了位置
-                text.tag_add("highlight", start, end)  # タグ追加
-                start = end  # 検索開始位置更新
+                end = f"{start}+{countVar.get()}c"
+                text.tag_add("highlight", start, end)
+                start = end
+
 
     def clear_highlight():
         text.tag_remove("highlight", "1.0", END)  # タグを削除
@@ -9994,7 +10545,7 @@ def color_picker():
 
     def on_release(key):
         nonlocal l
-        if key == keyboard.Key.pause:
+        if key == keyboard.Key.pause and shift==0:
             l=1
             root1.overrideredirect(False)
             return False
@@ -10115,7 +10666,7 @@ def magnifier():
 
     def on_release(key):
         nonlocal l
-        if key == keyboard.Key.pause:
+        if key == keyboard.Key.pause and shift==0:
             l=1
             root1.overrideredirect(False)
             return False
@@ -11162,7 +11713,7 @@ def window_kill():
             messagebox.showerror("エラー",f"プロセスを終了できませんでした: {e}")
 
     def on_release(key):
-        if key == keyboard.Key.pause:
+        if key == keyboard.Key.pause and shift==0:
                 hwnd, pid = get_active_window_info()
                 if pid:
                     kill_process_by_pid(pid)
@@ -12411,7 +12962,7 @@ def compulsion_paste():
     frame = ttk.Frame(root, padding=12)
 
     def on_release(key1):
-        if key1 == keyboard.Key.pause:
+        if key1 == keyboard.Key.pause and shift==0:
             key.write(clip.paste())
 
 
@@ -12451,7 +13002,7 @@ def window_tray():
 
     def on_release(key):
 
-        if key == keyboard.Key.pause:
+        if key == keyboard.Key.pause and shift==0:
             buttonY["state"] = "disabled"
 
             def quit_icon():
@@ -15337,7 +15888,7 @@ def process_priority():
     def on_release(key):
         nonlocal listener
         try:
-            if key == keyboard.Key.pause:
+            if key == keyboard.Key.pause and shift==0:
                 # アクティブなウィンドウのハンドル
                 hwnd = win32gui.GetForegroundWindow()
                 window_title = win32gui.GetWindowText(hwnd)
@@ -15518,6 +16069,164 @@ def image_compare():
     entry2.grid(row=2,column=1)
     button.grid(row=3,column=0,columnspan=2)
 
+def web_compress():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+    frame.pack()
+
+    def compress_html(input_html):
+        compressed_html = html_compress(input_html, remove_comments=True, remove_empty_space=True)
+        return compressed_html
+
+    def compress_javascript(input_js):
+        minified_code = jsmin.jsmin(input_js)
+        return minified_code
+
+    def compress_css(input_css):
+        compressed_css = css_compress(input_css)
+        return compressed_css
+
+
+    def minify(src_path):
+        extention = os.path.splitext(src_path)[1].replace(".", "")
+        if extention=="html" and var1.get()==1:
+            with open(src_path, encoding="utf_8") as f:
+                html_file= f.readlines()
+            html_file = "".join([s.strip() for s in html_file])
+            html_file = re.sub('<!--.*?-->', '', html_file)
+            min_file=compress_html(html_file)
+        elif extention=="css" and var2.get()==1:
+            with open(src_path, encoding="utf_8") as f:
+                css_file = f.readlines()
+            css_file = "".join([s.strip() for s in css_file])
+            css_file = re.sub('/\*.*?\*/', '', css_file)
+            css_file = re.sub(': +?', ':', css_file)
+            css_file = re.sub(' +?{', '{', css_file)
+            min_file=compress_css(css_file)
+        elif extention=="js" and var3.get()==1:
+            with open(src_path, encoding="utf_8") as f:
+                js_file = f.readlines()
+            js_file = [s.split("//")[0] for s in js_file]
+            js_file = "".join([s.strip() for s in js_file])
+            js_file = re.sub('/\*.*?\*/', '', js_file)
+            min_file=compress_javascript(js_file)
+        else:
+            return
+
+        with open(src_path, mode='w', encoding="utf_8") as f:
+            f.write(min_file)
+
+    def web_compress1(drop):
+        files=drop.data.replace("{","").replace("}","").replace("\\","/")
+        file_list=file_mult(files)
+        folder_path=filedialog.askdirectory()
+        if folder_path=="":
+            messagebox.showerror("エラー","フォルダを選択してください")
+            return
+        for x in file_list:
+            try:
+                # ファイルかフォルダか判別
+                if os.path.isfile(x):
+                    shutil.copy(x, folder_path)
+                    minify(os.path.join(folder_path, os.path.basename(x)))
+                else:
+                    new_folder=os.path.join(folder_path, os.path.basename(x))
+                    shutil.copytree(x, new_folder, dirs_exist_ok=True)
+                    for root_name, dirs, files in os.walk(new_folder):
+                        # ファイルの圧縮
+                        for file in files:
+                            minify( os.path.join(root_name, file))
+            except:
+                messagebox.showerror("エラー",f"{x}\nをうまく圧縮できませんでした")
+
+        messagebox.showinfo("完了","完了しました")
+
+
+    var1=IntVar()
+    var1.set(1)
+    var2=IntVar()
+    var2.set(1)
+    var3=IntVar()
+    var3.set(1)
+    check1=ttk.Checkbutton(frame,text="HTML",onvalue=1,offvalue=0,variable=var1)
+    check2=ttk.Checkbutton(frame,text="CSS",onvalue=1,offvalue=0,variable=var2)
+    check3=ttk.Checkbutton(frame,text="JS",onvalue=1,offvalue=0,variable=var3)
+    label1=ttk.Label(frame,text="圧縮したいファイル・フォルダを\nドロップしてください",font=("Helvetica", 16))
+    label1.drop_target_register(DND_FILES)
+    label1.dnd_bind('<<Drop>>',web_compress1)
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+
+    buttonX.grid(row=0,column=2)
+    buttonY.grid(row=0,column=0)
+    check1.grid(row=1,column=0)
+    check2.grid(row=1,column=1)
+    check3.grid(row=1,column=2)
+    label1.grid(row=2,column=0,columnspan=3)
+
+def zip_pass():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+
+    def text_top(drop):
+        try:
+            x=drop.data.replace("{","").replace("}","").replace("\\","/")
+            if os.path.isfile(x):
+                with pyzipper.AESZipFile(f"{os.path.splitext(x)[0]}.zip",
+                                        'w',
+                                        compression=pyzipper.ZIP_LZMA,
+                                        ) as zf:
+                    zf.setpassword(entry_p.get().encode())
+                    zf.setencryption(pyzipper.WZ_AES, nbits=256)
+                    zf.write(x, os.path.basename(x))
+                messagebox.showinfo("終了","圧縮完了しました")
+            else:
+                def zip_folder(folder_path, zip_name):
+                    with pyzipper.AESZipFile(zip_name, 'w',compression=pyzipper.ZIP_DEFLATED,compresslevel=var.get()) as zipf:
+                        zipf.setpassword(entry_p.get().encode())
+                        zipf.setencryption(pyzipper.WZ_AES, nbits=256)
+                        for root, _, files in os.walk(folder_path):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                zipf.write(file_path, os.path.relpath(file_path, folder_path))
+
+                zip_name=x+".zip"
+                folder_path = x
+                zip_folder(folder_path, zip_name)
+                messagebox.showinfo("終了","圧縮完了しました")
+        except:
+            messagebox.showerror("エラー","失敗しました")
+
+
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(3),font=("Helvetica", 7),bg="gray",fg="white")
+    var=IntVar()
+    var.set(6)
+    radio0=ttk.Radiobutton(frame,text="無圧縮",value=0,variable=var)
+    radio1=ttk.Radiobutton(frame,text="速度優先",value=1,variable=var)
+    radio6=ttk.Radiobutton(frame,text="バランス",value=6,variable=var)
+    radio9=ttk.Radiobutton(frame,text="圧縮率優先",value=9,variable=var)
+    frame.drop_target_register(DND_FILES)
+    frame.dnd_bind('<<Drop>>',text_top)
+    label_p=ttk.Label(frame,text="パスワードを入力してください：")
+    entry_p=ttk.Entry(frame,width=20)
+    label=ttk.Label(frame,text="圧縮レベルを選択してください")
+    label1=ttk.Label(frame,text="圧縮するフォルダを\nドロップしてください",font=("Helvetica", 16))
+
+    frame.pack()
+    buttonX.grid(row=0,column=3)
+    buttonY.grid(row=0,column=0)
+    label.grid(row=1,column=0,columnspan=2)
+    radio0.grid(row=2,column=0)
+    radio1.grid(row=2,column=1)
+    radio6.grid(row=2,column=2)
+    radio9.grid(row=2,column=3)
+    label_p.grid(row=3,column=0,columnspan=4)
+    entry_p.grid(row=4,column=0,columnspan=4)
+    label1.grid(row=5,column=0,columnspan=4)
+
 
 
 # GUI
@@ -15545,7 +16254,9 @@ if not os.path.exists(os.getcwd()+"/config/adv_setting.json"):
           "auto_update_chack":0,
           "show_center":0,
           "intermediate_screen":1,
-          "hide_mainwindow":0,}
+          "hide_mainwindow":0,
+          "launcher_width":2,
+          "launcher_height":5,}
     with open(os.getcwd()+"/config/adv_setting.json", "w") as file:
         json.dump(data, file)
 with open(os.getcwd()+"/config/adv_setting.json", "r") as file:
@@ -15578,6 +16289,14 @@ if "hide_mainwindow" in adv_setting:
     hide_mainwindow=adv_setting["hide_mainwindow"]
 else:
     hide_mainwindow=0
+if "launcher_width" in adv_setting:
+    launcher_width=adv_setting["launcher_width"]
+else:
+    launcher_width=2
+if "launcher_height" in adv_setting:
+    launcher_height=adv_setting["launcher_height"]
+else:
+    launcher_height=5
 
 if multi_window==0:
     WindowName = "Yuki's army knife"
@@ -15590,6 +16309,12 @@ if multi_window==0:
 
 main_checkbox_name="表示ショトカ無効"
 main_show_shrotcut=0
+
+if not os.path.exists(os.getcwd()+"/config/del_func.txt"):
+    with open(os.getcwd()+"/config/del_func.txt", "w") as file:
+        file.write("")
+with open(os.getcwd()+"/config/del_func.txt", "r") as file:
+    del_func = file.read().split("\n")[:-1]
 
 
 root = Tk()
