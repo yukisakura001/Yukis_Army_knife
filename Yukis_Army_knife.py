@@ -126,7 +126,7 @@ import jsmin
 from htmlmin import minify as html_compress
 import pyzipper
 
-version="7.0"
+version="7.1"
 
 class ToolTip():
     def __init__(self, widget, text="default tooltip"):
@@ -1679,8 +1679,14 @@ def set_frame1(page_x):
         text="パス付きzip作成",
         command=zip_pass
     )
+    button196=ttk.Button(
+        frame_text2,
+        width=13,
+        text="パスワード管理",
+        command=password_manages
+    )
 
-    kinou=195
+    kinou=196
 
     label_text=Label(frame_text,text="テキスト・情報",bg="green",fg="white")
     label_image=Label(frame_image,text="画像・PDF",bg="#800000",fg="white")
@@ -2490,6 +2496,9 @@ def launcher_screen():
                     elif set_launch[str(i*height_l+j)][0]==2:
                         icon_exe_img=exe_drop(set_launch[str(i*height_l+j)][2]).resize((48,48))
                         icon_image_set=ImageTk.PhotoImage(icon_exe_img)
+                    elif set_launch[str(i*height_l+j)][0]==3:
+                        icon_exe_img=exe_drop(set_launch[str(i*height_l+j)][2]).resize((48,48))
+                        icon_image_set=ImageTk.PhotoImage(icon_exe_img)
 
                     locals()["button"+str(i*height_l+j)]=Button(frame_main_l,text=set_launch[str(i*height_l+j)][1][:12],command=partial(click_l,i*height_l+j),width=150,height=70,bg="lightgray",image=icon_image_set,compound=TOP,font=("Courier", 7))
                     locals()["button"+str(i*height_l+j)].image=icon_image_set
@@ -2521,7 +2530,7 @@ def launcher_screen():
         entry1.pack()
         button1.pack()
 
-    def load_launch(num):
+    def load_launch(num=1):
         nonlocal set_launch
         with open(os.getcwd()+"/config/launch.json", "r",encoding="utf-8") as f:
             set_launch = json.load(f)
@@ -2535,7 +2544,10 @@ def launcher_screen():
         nonlocal set_launch
         path=drop.data.replace("{","").replace("}","").replace("\\","/")
         name=os.path.basename(path)
-        set_launch[str(num)]=[2,name,path]
+        if os.path.isdir(path):
+            set_launch[str(num)]=[3,name,path]
+        else:
+            set_launch[str(num)]=[2,name,path]
         save_launch()
         load_launch(num)
 
@@ -2566,7 +2578,10 @@ def launcher_screen():
                 load_launch(func_num)
             elif var.get()==2:
                 name=os.path.basename(entry1.get())
-                set_launch[str(func_num)]=[2,name,entry1.get()]
+                if os.path.isdir(entry1.get()):
+                    set_launch[str(func_num)]=[3,name,entry1.get()]
+                else:
+                    set_launch[str(func_num)]=[2,name,entry1.get()]
                 save_launch()
                 load_launch(func_num)
             messagebox.showinfo(title="登録", message="登録しました。")
@@ -2617,6 +2632,9 @@ def launcher_screen():
             elif set_launch[str(func_key)][0]==2:
                 # ファイル
                 os.startfile(set_launch[str(func_key)][2])
+            elif set_launch[str(func_key)][0]==3:
+                # フォルダ
+                subprocess.run(["explorer.exe", set_launch[str(func_key)][2]])
             root_l.destroy()
         except:
             messagebox.showinfo(title="エラー", message="機能が見つかりませんでした。")
@@ -2628,28 +2646,33 @@ def launcher_screen():
     icon_image_transparent=ImageTk.PhotoImage(img1)
     icon_image_net=my_icon.get_photo_web()
 
+    load_launch()
+    root.after(100, load_launch)
 
-    for i in range(width_l):
-        for j in range(height_l):
-            if str(i*height_l+j) not in set_launch:
-                locals()["button"+str(i*height_l+j)]=Button(frame_main_l,text="未登録",command=partial(set_func,i*height_l+j),width=150,height=70,bg="lightgray",image=icon_image_transparent,compound=TOP)
-                locals()["button"+str(i*height_l+j)].image=icon_image_transparent
-            else:
-                if set_launch[str(i*height_l+j)][0]==0:
-                    icon_image_set=icon_image1
-                elif set_launch[str(i*height_l+j)][0]==1:
-                    icon_image_set=icon_image_net
-                elif set_launch[str(i*height_l+j)][0]==2:
-                    icon_exe_img=exe_drop(set_launch[str(i*height_l+j)][2]).resize((48,48))
-                    icon_image_set=ImageTk.PhotoImage(icon_exe_img)
-
-                locals()["button"+str(i*height_l+j)]=Button(frame_main_l,text=set_launch[str(i*height_l+j)][1][:12],command=partial(click_l,i*height_l+j),width=150,height=70,bg="lightgray",image=icon_image_set,compound=TOP,font=("Courier", 7))
-                locals()["button"+str(i*height_l+j)].image=icon_image_set
-                ToolTip1=ToolTip(locals()["button"+str(i*height_l+j)],set_launch[str(i*height_l+j)][1])
-                RightClickMenu(locals()["button"+str(i*height_l+j)],[("削除",partial(delete_func,i*height_l+j)),("名前編集",partial(custom_func,i*height_l+j))])
-            locals()["button"+str(i*height_l+j)].grid(row=i,column=j)
-            locals()["button"+str(i*height_l+j)].drop_target_register(DND_FILES)
-            locals()["button"+str(i*height_l+j)].dnd_bind('<<Drop>>',partial(set_func1,i*height_l+j))
+    #for i in range(width_l):
+    #    for j in range(height_l):
+    #        if str(i*height_l+j) not in set_launch:
+    #            locals()["button"+str(i*height_l+j)]=Button(frame_main_l,text="未登録",command=partial(set_func,i*height_l+j),width=150,height=70,bg="lightgray",image=icon_image_transparent,compound=TOP)
+    #            locals()["button"+str(i*height_l+j)].image=icon_image_transparent
+    #        else:
+    #            if set_launch[str(i*height_l+j)][0]==0:
+    #                icon_image_set=icon_image1
+    #            elif set_launch[str(i*height_l+j)][0]==1:
+    #                icon_image_set=icon_image_net
+    #            elif set_launch[str(i*height_l+j)][0]==2:
+    #                icon_exe_img=exe_drop(set_launch[str(i*height_l+j)][2]).resize((48,48))
+    #                icon_image_set=ImageTk.PhotoImage(icon_exe_img)
+    #            elif set_launch[str(i*height_l+j)][0]==3:
+    #                icon_exe_img=exe_drop(set_launch[str(i*height_l+j)][2]).resize((48,48))
+    #                icon_image_set=ImageTk.PhotoImage(icon_exe_img)
+#
+    #            locals()["button"+str(i*height_l+j)]=Button(frame_main_l,text=set_launch[str(i*height_l+j)][1][:12],command=partial(click_l,i*height_l+j),width=150,height=70,bg="lightgray",image=icon_image_set,compound=TOP,font=("Courier", 7))
+    #            locals()["button"+str(i*height_l+j)].image=icon_image_set
+    #            ToolTip1=ToolTip(locals()["button"+str(i*height_l+j)],set_launch[str(i*height_l+j)][1])
+    #            RightClickMenu(locals()["button"+str(i*height_l+j)],[("削除",partial(delete_func,i*height_l+j)),("名前編集",partial(custom_func,i*height_l+j))])
+    #        locals()["button"+str(i*height_l+j)].grid(row=i,column=j)
+    #        locals()["button"+str(i*height_l+j)].drop_target_register(DND_FILES)
+    #        locals()["button"+str(i*height_l+j)].dnd_bind('<<Drop>>',partial(set_func1,i*height_l+j))
 
 
     root_l.update_idletasks()
@@ -2670,8 +2693,6 @@ def launcher_screen():
     #            or root_l.winfo_pointerxy()[1] < root_l.winfo_y() or root_l.winfo_pointerxy()[1] > root_l.winfo_y() + root_l.winfo_height():
     #        root_l.destroy()
     #frame_main_l.bind("<Leave>",hide_window )
-
-
 
 def listener_window():
     global main_show_shrotcut,shift
@@ -13898,7 +13919,7 @@ def totp_generator():
     def update_time():
         nonlocal action_list
         try:
-            if  len(savejson)!=0:
+            if len(savejson)!=0:
                 action_list1=action_list.copy()
                 action_list=[[item["site_name"],item["my_name"] ,pyotp.TOTP(item["code"]).now()] for item in savejson]
                 if action_list1!=action_list:
@@ -16227,11 +16248,308 @@ def zip_pass():
     entry_p.grid(row=4,column=0,columnspan=4)
     label1.grid(row=5,column=0,columnspan=4)
 
+def password_manages():
+    global frame,buttonY
+
+    def save_pass():
+        nonlocal savejson,action_list
+        json_data=json.dumps(savejson).encode("utf-8")
+        save_data=encrypt(json_data, pass_hash)
+        make_folder(os.getcwd()+"/config/pass_data")
+        with open(os.getcwd()+"/config/pass_data/pass_list", 'wb') as f:
+            f.write(save_data)
+        action_list=[[i["name"],i["id"],i["pass"],i["url"],i["memo"]] for i in savejson]
+
+    def aes_new(password, iv):
+        sha = Crypto.Hash.SHA256.new()
+        sha.update(password.encode())
+        return AES.new(sha.digest(), AES.MODE_CFB, iv)
+
+    def decrypt(data, password):
+        iv, cipher = data[:AES.block_size], data[AES.block_size:]
+        return aes_new(password, iv).decrypt(cipher)
+
+        # 暗号化
+    def encrypt(data, password):
+        iv = Crypto.Random.new().read(AES.block_size)
+        return iv + aes_new(password, iv).encrypt(data)
+
+    def search_pass():
+        check_list=search_list_create()
+        new_list=[]
+        if search.get()=="":
+            tree.configure_arr(action_list)
+        else:
+            for i in check_list:
+                new_list.append(action_list[i])
+            tree.configure_arr(new_list)
+
+    def search_list_create():
+        true_num_list=[]
+        parse = urlparse(search.get())
+        domain = parse.netloc
+        for i in range(len(action_list)):
+            if search.get() in action_list[i][0]:
+                true_num_list.append(i)
+                continue
+            if search.get() in action_list[i][1]:
+                true_num_list.append(i)
+                continue
+            if search.get() in action_list[i][2]:
+                continue
+            if search.get() in action_list[i][3]:
+                true_num_list.append(i)
+                continue
+            if domain in action_list[i][3] and domain!="":
+                true_num_list.append(i)
+                continue
+            if search.get() in action_list[i][4]:
+                true_num_list.append(i)
+                continue
+        return true_num_list
+
+    def password_del():
+        nonlocal savejson,action_list
+        ok_no=messagebox.askyesno("確認","削除してもよろしいですか？")
+        if ok_no!=True:
+            return
+        try:
+            record_id = tree.focus()
+            record_values = tree.item(record_id, 'values')
+            for i in range(len(savejson)):
+                if savejson[i]["name"]==record_values[0] and savejson[i]["id"]==record_values[1] and savejson[i]["pass"]==record_values[2] and savejson[i]["url"]==record_values[3] and savejson[i]["memo"]==record_values[4]:
+                    del savejson[i]
+                    break
+            action_list=[[i["name"],i["id"],i["pass"],i["url"],i["memo"]] for i in savejson]
+            tree.configure_arr(action_list)
+            save_pass()
+            messagebox.showinfo("完了","削除しました")
+        except:
+            messagebox.showerror("エラー","行を指定してください")
+
+
+    def password_edit():
+        nonlocal savejson
+
+        def edit_pass(i):
+            nonlocal savejson
+            def edit_pass1():
+                nonlocal savejson
+                if entry1.get()=="" or entry2.get()=="" or entry3.get()=="":
+                    messagebox.showerror("エラー","入力してください")
+                    return
+                try:
+                    response = requests.get(entry1.get())
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    title = soup.title.string
+                except:
+                    title=entry1.get()
+                if title=="":
+                    title=entry1.get()
+                elif title==None:
+                    title=entry1.get()
+                url=entry1.get()
+                domain = urlparse(url).netloc
+                if savejson[i]["name"]!=title:
+                    savejson[i]["name"]=title
+                if savejson[i]["id"]!=entry2.get():
+                    savejson[i]["id"]=entry2.get()
+                if savejson[i]["pass"]!=entry3.get():
+                    savejson[i]["pass"]=entry3.get()
+                if savejson[i]["url"]!=url:
+                    savejson[i]["url"]=url
+                if savejson[i]["memo"]!=entry4.get( 0., END ).rstrip():
+                    savejson[i]["memo"]=entry4.get( 0., END ).rstrip()
+                save_pass()
+                tree.configure_arr([[i["name"],i["id"],i["pass"],i["url"],i["memo"]] for i in savejson])
+                messagebox.showinfo("完了","追加しました")
+                root1.destroy()
+
+
+            root1=Free_window()
+            root1.title("パスワード編集")
+            root1.attributes("-topmost", True)
+            frame001=ttk.Frame(root1)
+            frame001.pack()
+            label1=ttk.Label(frame001,text="URL：")
+            entry1=ttk.Entry(frame001,width=20)
+            entry1.insert(END,savejson[i]["url"])
+            label2=ttk.Label(frame001,text="ユーザー名：")
+            entry2=ttk.Entry(frame001,width=20)
+            entry2.insert(END,savejson[i]["id"])
+            label3=ttk.Label(frame001,text="パスワード：")
+            entry3=ttk.Entry(frame001,width=20)
+            entry3.insert(END,savejson[i]["pass"])
+            label4=ttk.Label(frame001,text="メモ：")
+            entry4=ScrolledText(frame001,width=20)
+            entry4.insert(END,savejson[i]["memo"])
+            button1=ttk.Button(frame001,text="変更",command=edit_pass1)
+
+            label1.grid(row=0,column=0)
+            entry1.grid(row=0,column=1)
+            label2.grid(row=1,column=0)
+            entry2.grid(row=1,column=1)
+            label3.grid(row=2,column=0)
+            entry3.grid(row=2,column=1)
+            label4.grid(row=3,column=0)
+            entry4.grid(row=3,column=1)
+            button1.grid(row=4,column=0,columnspan=2)
+
+        try:
+            record_id = tree.focus()
+            record_values = tree.item(record_id, 'values')
+            for i in range(len(savejson)):
+                if savejson[i]["name"]==record_values[0] and savejson[i]["id"]==record_values[1] and savejson[i]["pass"]==record_values[2] and savejson[i]["url"]==record_values[3] and savejson[i]["memo"]==record_values[4]:
+                    edit_pass(i)
+        except:
+            messagebox.showerror("エラー","行を指定してください")
+
+
+    def password_add():
+        nonlocal savejson
+        def add_pass():
+            nonlocal savejson
+            if entry1.get()=="" or entry2.get()=="" or entry3.get()=="":
+                messagebox.showerror("エラー","入力してください")
+                return
+            try:
+                response = requests.get(entry1.get())
+                soup = BeautifulSoup(response.content, 'html.parser')
+                title = soup.title.string
+            except:
+                title=entry1.get()
+            if title=="":
+                title=entry1.get()
+            elif title==None:
+                title=entry1.get()
+            url=entry1.get()
+            domain = urlparse(url).netloc
+            savejson.append({"name":title,"id":entry2.get(),"pass":entry3.get(),"url":url,"memo":entry4.get( 0., END ).rstrip()})
+            save_pass()
+            tree.configure_arr([[i["name"],i["id"],i["pass"],i["url"],i["memo"]] for i in savejson])
+            messagebox.showinfo("完了","追加しました")
+            root1.destroy()
+
+        root1=Free_window()
+        root1.title("パスワード追加")
+        root1.attributes("-topmost", True)
+        frame001=ttk.Frame(root1)
+        frame001.pack()
+        label1=ttk.Label(frame001,text="URL：")
+        entry1=ttk.Entry(frame001,width=20)
+        label2=ttk.Label(frame001,text="ユーザー名：")
+        entry2=ttk.Entry(frame001,width=20)
+        label3=ttk.Label(frame001,text="パスワード：")
+        entry3=ttk.Entry(frame001,width=20)
+        label4=ttk.Label(frame001,text="メモ：")
+        entry4=ScrolledText(frame001,width=20)
+        button1=ttk.Button(frame001,text="追加",command=add_pass)
+
+        label1.grid(row=0,column=0)
+        entry1.grid(row=0,column=1)
+        label2.grid(row=1,column=0)
+        entry2.grid(row=1,column=1)
+        label3.grid(row=2,column=0)
+        entry3.grid(row=2,column=1)
+        label4.grid(row=3,column=0)
+        entry4.grid(row=3,column=1)
+        button1.grid(row=4,column=0,columnspan=2)
+
+    def copy_user():
+        record_id = tree.focus()
+        record_values = tree.item(record_id, 'values')
+        clip.copy(record_values[1])
+
+    def copy_pass():
+        record_id = tree.focus()
+        record_values = tree.item(record_id, 'values')
+        clip.copy(record_values[2])
+
+    def show_data():
+        record_id = tree.focus()
+        record_values = tree.item(record_id, 'values')
+
+        root1=Free_window()
+        root1.title("データ表示")
+        root1.attributes("-topmost", True)
+        frame001=ttk.Frame(root1)
+        label1=ttk.Label(frame001,text=f"サイト名：{record_values[0]}",anchor="w")
+        label2=ttk.Label(frame001,text=f"ユーザー名：{record_values[1]}",anchor="w")
+        label3=ttk.Label(frame001,text=f"パスワード：{record_values[2]}",anchor="w")
+        label4=ttk.Label(frame001,text=f"URL：{record_values[3]}",anchor="w")
+        label5=ttk.Label(frame001,text=f"メモ：\n{record_values[4]}",anchor="w")
+        button1=ttk.Button(frame001,text="サイト名コピー",command=lambda:clip.copy(record_values[0]),width=10)
+        button2=ttk.Button(frame001,text="ユーザー名コピー",command=lambda:clip.copy(record_values[1]),width=10)
+        button3=ttk.Button(frame001,text="パスワードコピー",command=lambda:clip.copy(record_values[2]),width=10)
+        button4=ttk.Button(frame001,text="URLコピー",command=lambda:clip.copy(record_values[3]),width=10)
+        button5=ttk.Button(frame001,text="メモコピー",command=lambda:clip.copy(record_values[4]),width=10)
+
+        frame001.grid(row=0,column=0)
+        label1.grid(row=0,column=0,sticky=W+E)
+        label2.grid(row=1,column=0,sticky=W+E)
+        label3.grid(row=2,column=0,sticky=W+E)
+        label4.grid(row=3,column=0,sticky=W+E)
+        label5.grid(row=4,column=0,sticky=W+E)
+        button1.grid(row=0,column=1)
+        button2.grid(row=1,column=1)
+        button3.grid(row=2,column=1)
+        button4.grid(row=3,column=1)
+        button5.grid(row=4,column=1)
+
+    # ファイルの確認
+    try:
+        if os.path.exists(os.getcwd()+"/config/pass_data/pass_list"):
+            with open(os.getcwd()+"/config/pass_data/pass_list", 'rb') as f:
+                totp_data=f.read()
+            password=simpledialog.askstring("パスワード","パスワードを入力してください")
+            if password==None:
+                return
+            pass_hash=hashlib.sha512(f"{str(password)}YukisArmyknife".rstrip().encode()).hexdigest()
+            for i in range(10):
+                pass_hash=hashlib.sha512(pass_hash.rstrip().encode()).hexdigest()
+            savedata = decrypt(totp_data, pass_hash)
+            savejson=json.loads(savedata)
+        else:
+            messagebox.showerror("初期設定","パスワードを設定してください")
+            new_pass=simpledialog.askstring("パスワード","パスワードを入力してください")
+            pass_hash=hashlib.sha512(f"{str(new_pass)}YukisArmyknife".rstrip().encode()).hexdigest()
+            for i in range(10):
+                pass_hash=hashlib.sha512(pass_hash.rstrip().encode()).hexdigest()
+            savejson=[]
+            messagebox.showinfo("初期設定","初期設定が完了しました")
+    except:
+        messagebox.showerror("エラー","パスワードが間違っています")
+        return
+
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+    if len(savejson)==0:
+        action_list=[]
+    else:
+        # jsonの構造は[{"name":サイト名,"id":ユーザー名,"pass":パスワード,"url":ドメイン}]
+        # リストにする
+        action_list=[[i["name"],i["id"],i["pass"],i["url"],i["memo"]] for i in savejson]
+
+
+    search=ttk.Entry(frame,width=20)
+    button=ttk.Button(frame,text="検索",command=search_pass)
+    tree=ScrolledTree(frame,arrRows=action_list,columns=["サイト","ユーザー名","パスワード","URL"],arrColWidth=[150,150,100,150],height=20)
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+    button1=ttk.Button(frame,text="追加",command=password_add)
+    RightClickMenu(tree,[("ユーザー名",copy_user),("パスワード",copy_pass),("データ表示",show_data),("削除",password_del),("編集",password_edit)],tree_rclick=True)
+
+    frame.pack()
+    buttonX.grid(row=0,column=2)
+    buttonY.grid(row=0,column=0)
+    search.grid(row=1,column=1,columnspan=2)
+    button.grid(row=1,column=2)
+    tree.grid(row=2,column=0,columnspan=3)
+    button1.grid(row=3,column=1)
+
 
 
 # GUI
-time.sleep(0.1)
-
 try:
    ctypes.windll.user32.SetProcessDPIAware()
    ctypes.windll.shcore.SetProcessDpiAwareness(True)
