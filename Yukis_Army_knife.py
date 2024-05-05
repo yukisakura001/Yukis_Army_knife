@@ -1685,8 +1685,14 @@ def set_frame1(page_x):
         text="パスワード管理",
         command=password_manages
     )
+    button197=ttk.Button(
+        frame_image3,
+        width=13,
+        text="ico作成",
+        command=ico_create
+    )
 
-    kinou=196
+    kinou=197
 
     label_text=Label(frame_text,text="テキスト・情報",bg="green",fg="white")
     label_image=Label(frame_image,text="画像・PDF",bg="#800000",fg="white")
@@ -3719,9 +3725,6 @@ def image_change():
                 if v2.get()==1:
                     x_png=x.replace(youso,".png")
                     img.save(x_png,"png",optimize=True)
-                if v3.get()==1:
-                    x_ico=x.replace(youso,".ico")
-                    img.save(x_ico,"ico")
                 if v4.get()==1:
                     x_jpg=x.replace(youso,".jpg")
                     img=img.convert("RGB")
@@ -3743,8 +3746,6 @@ def image_change():
     cb1=ttk.Checkbutton(frame,text="GIF",variable=v1, onvalue=1, offvalue=0)
     v2=IntVar()
     cb2=ttk.Checkbutton(frame,text="PNG",variable=v2, onvalue=1, offvalue=0)
-    v3=IntVar()
-    cb3=ttk.Checkbutton(frame,text="ICO",variable=v3, onvalue=1, offvalue=0)
     v4=IntVar()
     cb4=ttk.Checkbutton(frame,text="JPEG",variable=v4, onvalue=1, offvalue=0)
     v5=IntVar()
@@ -3767,7 +3768,6 @@ def image_change():
     buttonY.grid(row=0,column=0)
     cb1.grid(row=1,column=0)
     cb2.grid(row=1,column=1)
-    cb3.grid(row=1,column=2)
     cb4.grid(row=1,column=3)
     cb5.grid(row=1,column=4)
     cb6.grid(row=1,column=5)
@@ -16546,6 +16546,39 @@ def password_manages():
     button.grid(row=1,column=2)
     tree.grid(row=2,column=0,columnspan=3)
     button1.grid(row=3,column=1)
+
+def ico_create():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+    frame.pack()
+
+    def ico_create1(drop):
+        paths=drop.data.replace("{","").replace("}","").replace("\\","/")
+        file_list=file_mult(paths)
+        for x in file_list:
+            img=Image.open(x)
+            y=os.path.splitext(x)[0]+".ico"
+            img.save(y,sizes=[(int(combo.get().split("×")[0]),int(combo.get().split("×")[1]))])
+        messagebox.showinfo("完了","完了しました")
+
+
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+    label=ttk.Label(frame,text="画像ファイルを\nドロップしてください",font=("Helvetica", 16))
+    label.drop_target_register(DND_FILES)
+    label.dnd_bind('<<Drop>>',ico_create1)
+    label1=ttk.Label(frame,text="アイコンのサイズ：")
+    combo=ttk.Combobox(frame,values=["16×16","32×32","48×48","64×64","128×128","256×256"],
+                       width=10,
+                       state="readonly")
+    combo.set("16×16")
+
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label.grid(row=1,column=0,columnspan=2)
+    label1.grid(row=2,column=0)
+    combo.grid(row=2,column=1)
 
 
 
