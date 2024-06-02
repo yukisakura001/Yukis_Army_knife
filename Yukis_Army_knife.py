@@ -1691,8 +1691,15 @@ def set_frame1(page_x):
         text="ico作成",
         command=ico_create
     )
+    button198=ttk.Button(
+        frame_text2,
+        width=13,
+        text="webブックマーク",
+        command=web_bookmark
+    )
 
-    kinou=197
+
+    kinou=198
 
     label_text=Label(frame_text,text="テキスト・情報",bg="green",fg="white")
     label_image=Label(frame_image,text="画像・PDF",bg="#800000",fg="white")
@@ -2640,7 +2647,8 @@ def launcher_screen():
                 os.startfile(set_launch[str(func_key)][2])
             elif set_launch[str(func_key)][0]==3:
                 # フォルダ
-                subprocess.run(["explorer.exe", set_launch[str(func_key)][2]])
+                folder_path=set_launch[str(func_key)][2].replace("/","\\")
+                subprocess.run(["explorer.exe", folder_path])
             root_l.destroy()
         except:
             messagebox.showinfo(title="エラー", message="機能が見つかりませんでした。")
@@ -16580,7 +16588,136 @@ def ico_create():
     label1.grid(row=2,column=0)
     combo.grid(row=2,column=1)
 
+def web_bookmark():
+    global frame,buttonY
+    main_frame_delete()
+    frame = ttk.Frame(root, padding=12)
+    frame.pack()
 
+    def web_bookmark1():
+        try:
+            url=entry.get()
+            response = requests.get(url)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            title=soup.title.string
+            if title=="":
+                title=url
+            elif title==None:
+                title=url
+            description=soup.find("meta", attrs={"name": "description"})
+            if description==None:
+                description=""
+            else:
+                description=description.get("content")
+
+            html="""
+<div class="bookmark">
+    <a href="{}" style="display: block; padding: 10px; margin: 10px 0; background-color: #E5E5E5; border-radius: 5px; text-decoration: none; color: inherit; transition: background-color 0.3s, transform 0.3s;">
+        <p style="margin: 5px 0;"><font size="3">{}</font></p>
+        <p style="margin: 5px 0;"><font size="1">{}</font></p>
+        <p style="margin: 5px 0;"><font size="1">{}</font></p>
+    </a>
+</div>
+            """.format(url,title,description,url)
+            html=html.strip("\n")
+
+            text.delete(1.0, END)
+            text.insert(END,html)
+        except:
+            messagebox.showerror("エラー","失敗しました")
+
+    def copy():
+        clip.copy(text.get( 1., END ))
+        messagebox.showinfo("完了","コピーしました")
+
+
+
+    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+    buttonY=Button(frame,text="戻る",command=lambda:main_frame(0),font=("Helvetica", 7),bg="gray",fg="white")
+    label=ttk.Label(frame,text="URLを入力してください")
+    entry=ttk.Entry(frame,width=30)
+    button=ttk.Button(frame,text="ブックマーク作成",command=web_bookmark1)
+    text=ScrolledText(frame,width=30,height=10)
+    button1=ttk.Button(frame,text="コピー",command=copy)
+
+    buttonX.grid(row=0,column=1)
+    buttonY.grid(row=0,column=0)
+    label.grid(row=1,column=0)
+    entry.grid(row=1,column=1)
+    button.grid(row=2,column=0,columnspan=2)
+    text.grid(row=3,column=0,columnspan=2)
+    button1.grid(row=4,column=0,columnspan=2)
+
+#def file_force_delete():
+#    global frame,buttonY
+#    main_frame_delete()
+#    frame = ttk.Frame(root, padding=12)
+#    frame.pack()
+#
+#    def file_force_delete1(drop):
+#        paths=drop.data.replace("{","").replace("}","").replace("\\","/")
+#        file_list=file_mult(paths)
+#        for file_path in file_list:
+#            print(file_path)
+#            if not os.path.isfile(file_path):
+#                messagebox.showerror("エラー",f"{file_path}\nはファイルではありません")
+#                continue
+#
+#            # 実行ファイルのとき
+#            if os.path.splitext(file_path)[1]==".exe":
+#                file_name = os.path.basename(file_path)
+#                # プロセスを見つけて終了する
+#                for proc in psutil.process_iter(['pid', 'name', 'exe']):
+#                    try:
+#                        # プロセスの名前と実行ファイルの名前が一致するか確認
+#                        if proc.info['name'] == file_name:
+#                            reaction=messagebox.askquestion("確認",f"{proc.info['name']} (PID: {proc.info['pid']}を終了しますか？")
+#                            if reaction=="yes":
+#                                proc.terminate()  # プロセスを終了する
+#                                proc.wait()  # プロセスが終了するのを待つ
+#                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+#                        pass
+#                # 実行ファイルを削除する
+#                if os.path.exists(file_path):
+#                    try:
+#                        os.remove(file_path)
+#                    except OSError as e:
+#                        messagebox.showerror("エラー",f"{file_path}\nを削除できませんでした")
+#                else:
+#                    messagebox.showerror("エラー",f"{file_path}\nが見つかりません")
+#                continue
+#
+#
+#            for proc in psutil.process_iter(['pid', 'name']):
+#                try:
+#                    # Get the list of open files by the process
+#                    open_files = proc.open_files()
+#                    for open_file in open_files:
+#                        if open_file.path == file_path:
+#                            reaction=messagebox.askquestion("確認",f"{proc.info['name']} (PID: {proc.info['pid']}を終了しますか？")
+#                            if reaction=="yes":
+#                                proc.terminate()
+#                                proc.wait(timeout=3)
+#                except (psutil.NoSuchProcess, psutil.AccessDenied):
+#                    continue
+#                # Now try to delete the file
+#            try:
+#                os.remove(file_path)
+#                print(f"File successfully deleted: {file_path}")
+#            except Exception as e:
+#                print(f"Error deleting file: {e}")
+#
+#        messagebox.showinfo("完了","完了しました")
+#
+#    buttonX=ttk.Checkbutton(frame,text=main_checkbox_name,onvalue=1,offvalue=0,variable=window_front,command=execute)
+#    buttonY=Button(frame,text="戻る",command=lambda:main_frame(2),font=("Helvetica", 7),bg="gray",fg="white")
+#    label=ttk.Label(frame,text="削除したいファイルを\nドロップしてください",font=("Helvetica", 16))
+#    label.drop_target_register(DND_FILES)
+#    label.dnd_bind('<<Drop>>',file_force_delete1)
+#
+#    buttonX.grid(row=0,column=1)
+#    buttonY.grid(row=0,column=0)
+#    label.grid(row=1,column=0,columnspan=2)
 
 # GUI
 try:
