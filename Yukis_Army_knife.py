@@ -10,7 +10,7 @@ import re
 import time
 import os
 from tkinterdnd2 import *
-import random
+import random   
 from yt_dlp import YoutubeDL
 from PIL import Image, ImageTk,ExifTags,ImageOps,ImageDraw,ImageFont
 import qrcode
@@ -45,7 +45,7 @@ from  randomuser import *
 from datetime import datetime,timedelta
 import time
 from gtts import gTTS
-from playsound import playsound
+from playsound3 import playsound
 from urllib.parse import urlparse
 import hashlib
 from tkinter import colorchooser
